@@ -3,6 +3,7 @@
 import logging
 from typing import Any
 
+from helpers.entity import async_generate_entity_id
 import voluptuous as vol
 
 from homeassistant.config_entries import (
@@ -17,7 +18,13 @@ from homeassistant.core import callback
 from homeassistant.helpers.selector import selector
 
 from .const import (
+    CONFIG_MAIN_THERMOSTAT_NAME,
+    CONFIG_TEMPERATURE_SENSOR,
+    CONFIG_TRVS,
+    CONFIG_WINDOW_SENSORS,
+    CONFIG_ZONE_NAME,
     DOMAIN,
+    ENTITY_ID_FORMAT,
     STEP_CIRCUITS,
     STEP_ENTITIES,
     STEP_FINISH,
@@ -37,6 +44,7 @@ class ExampleConfigFlow(ConfigFlow, domain=DOMAIN):
     VERSION = 1
     _input_data: dict[str, Any]
     _title: str
+    _id: str
 
     async def async_step_user(
         self, user_input: dict[str, Any] | None = None
@@ -47,7 +55,7 @@ class ExampleConfigFlow(ConfigFlow, domain=DOMAIN):
         """
 
         data_schema = vol.Schema(
-            {vol.Required("main_thermostat_name", default="Main Thermostat"): str}
+            {vol.Required(CONFIG_MAIN_THERMOSTAT_NAME, default="Main Thermostat"): str}
         )
 
         errors: dict[str, str] = {}
@@ -61,11 +69,13 @@ class ExampleConfigFlow(ConfigFlow, domain=DOMAIN):
                 errors["base"] = "unknown"
 
             if "base" not in errors:
-                await self.async_set_unique_id(user_input.get("main_thermostat_name"))
+                self._input_data = user_input
+                self._title = user_input.get(CONFIG_MAIN_THERMOSTAT_NAME)
+                self._id = async_generate_entity_id(ENTITY_ID_FORMAT, self._title, hass=self.hass)
+
+                await self.async_set_unique_id(self._id)
                 self._abort_if_unique_id_configured()
 
-                self._input_data = user_input
-                self._title = user_input.get("main_thermostat_name")
                 # return await self.async_step_menu()
                 return self.async_create_entry(title=self._title, data=self._input_data)
 
@@ -103,7 +113,7 @@ class ZoneSubentryFlowHandler(ConfigSubentryFlow):
     ) -> SubentryFlowResult:
         """User flow to add a new heating zone."""
 
-        data_schema = vol.Schema({vol.Required("zone_name"): str})
+        data_schema = vol.Schema({vol.Required(CONFIG_ZONE_NAME): str})
 
         errors: dict[str, str] = {}
 
@@ -117,7 +127,7 @@ class ZoneSubentryFlowHandler(ConfigSubentryFlow):
 
             if "base" not in errors:
                 self._input_data = user_input
-                self._title = user_input.get("zone_name")
+                self._title = user_input.get(CONFIG_ZONE_NAME)
                 return await self.async_step_entities()
 
         return self.async_show_form(step_id=STEP_USER, data_schema=data_schema)
@@ -135,7 +145,7 @@ class ZoneSubentryFlowHandler(ConfigSubentryFlow):
         data_schema = vol.Schema(
             {
                 vol.Required(
-                    "temperature_sensor", default=existing.get("temperature_sensor")
+                    CONFIG_TEMPERATURE_SENSOR, default=existing.get(CONFIG_TEMPERATURE_SENSOR)
                 ): selector(
                     {
                         "entity": {
@@ -147,7 +157,7 @@ class ZoneSubentryFlowHandler(ConfigSubentryFlow):
                     }
                 ),
                 vol.Optional(
-                    "window_sensors", default=existing.get("window_sensors", [])
+                    CONFIG_WINDOW_SENSORS, default=existing.get(CONFIG_WINDOW_SENSORS, [])
                 ): selector(
                     {
                         "entity": {
@@ -159,7 +169,7 @@ class ZoneSubentryFlowHandler(ConfigSubentryFlow):
                         }
                     }
                 ),
-                vol.Optional("trvs", default=existing.get("trvs", [])): selector(
+                vol.Optional(CONFIG_TRVS, default=existing.get(CONFIG_TRVS, [])): selector(
                     {
                         "entity": {
                             "filter": {"domain": "climate"},

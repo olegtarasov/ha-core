@@ -1,10 +1,11 @@
 """Climate Manager integration."""
 
-from .const import SUBENTRY_TYPE_ZONE
-from .hub import Hub
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import Platform
 from homeassistant.core import HomeAssistant
+
+from .const import DOMAIN, SUBENTRY_TYPE_ZONE
+from .hub import Hub
 
 PLATFORMS: list[Platform] = [
     Platform.BINARY_SENSOR,
@@ -26,7 +27,7 @@ async def async_setup_entry(hass: HomeAssistant, config_entry: HubConfigEntry) -
         if item.subentry_type == SUBENTRY_TYPE_ZONE
     ]
 
-    config_entry.runtime_data = Hub(hass, config_entry.data.copy(), zones)
+    config_entry.runtime_data = Hub(hass, config_entry, zones)
 
     await hass.config_entries.async_forward_entry_setups(config_entry, PLATFORMS)
     return True

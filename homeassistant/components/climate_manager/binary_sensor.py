@@ -4,6 +4,8 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from . import HubConfigEntry
+from .common import HubBinarySensorBase
+from .hub import Hub
 
 
 async def async_setup_entry(
@@ -14,9 +16,12 @@ async def async_setup_entry(
     """Add sensors for passed config_entry in HA."""
     hub = config_entry.runtime_data
 
-    new_devices = []
-    # for roller in hub.rollers:
-    #     new_devices.append(BatterySensor(roller))
-    #     new_devices.append(IlluminanceSensor(roller))
-    # if new_devices:
-    #     async_add_entities(new_devices)
+    async_add_entities([HubFaultSensor(hub)])
+
+
+class HubFaultSensor(HubBinarySensorBase):
+    def __init__(self, hub: Hub):
+        super().__init__("Fault", hub)
+
+        self._attr_is_on = False
+
