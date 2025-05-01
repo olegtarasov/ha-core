@@ -1,0 +1,57 @@
+{
+  "config": {
+    "flow_title": "Climate Manager",
+    "step": {
+      "user": {
+        "title": "Thermostat name",
+        "description": "Choose a name for the main thermostat",
+        "data": {
+          "main_thermostat_name": "Main thermostat name"
+        }
+      },
+      "menu": {
+        "title": "Configuration",
+        "menu_options": {
+          "heating_zones": "Heating zones",
+          "heating_circuits": "Heating circuits",
+          "finish": "Finish setup"
+        }
+      }
+    },
+    "options": {
+      "step": {
+        "init": {
+          "title": "Multizone Heating Options",
+          "description": "Modify component settings",
+          "data": {
+            "name": "Name"
+          }
+        }
+      }
+    }
+  },
+  "config_subentries": {
+    "zone": {
+      "flow_title": "Heating zone",
+      "initiate_flow": {
+        "user": "Heating zone"
+      },
+      "step": {
+        "user": {
+          "title": "Heating zone",
+          "data": {
+            "zone_name": "Zone name"
+          }
+        },
+        "entities": {
+          "title": "Entities",
+          "data": {
+            "temperature_sensor": "Temperature sensor",
+            "window_sensors": "Window sensors",
+            "trvs": "TRVs"
+          }
+        }
+      }
+    }
+  }
+}

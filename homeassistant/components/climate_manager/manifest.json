@@ -1,0 +1,17 @@
+{
+  "domain": "climate_manager",
+  "name": "Climate Manager",
+  "codeowners": [
+    "@olegtarasov"
+  ],
+  "config_flow": true,
+  "dependencies": [],
+  "documentation": "https://www.home-assistant.io/integrations/climate_manager",
+  "homekit": {},
+  "iot_class": "calculated",
+  "quality_scale": "bronze",
+  "requirements": ["simple-pid==2.0.1"],
+  "ssdp": [],
+  "zeroconf": [],
+  "version": "0.0.1"
+}
