@@ -5,9 +5,13 @@ ENTITY_ID_FORMAT = DOMAIN + ".{}"
 
 CONFIG_MAIN_THERMOSTAT_NAME = "main_thermostat_name"
 CONFIG_ZONE_NAME = "zone_name"
+CONFIG_REGULATOR_TYPE = "regulator_type"
 CONFIG_TEMPERATURE_SENSOR = "temperature_sensor"
 CONFIG_WINDOW_SENSORS = "window_sensors"
 CONFIG_TRVS = "trvs"
+
+REGULATOR_TYPE_PID = "PID"
+REGULATOR_TYPE_HYSTERESIS = "Hysteresis"
 
 SUBENTRY_TYPE_ZONE = "zone"
 SUBENTRY_TYPE_CIRCUIT = "circuit"

@@ -23,6 +23,9 @@ from .const import (
     CONFIG_TRVS,
     CONFIG_WINDOW_SENSORS,
     CONFIG_ZONE_NAME,
+    CONFIG_REGULATOR_TYPE,
+    REGULATOR_TYPE_PID,
+    REGULATOR_TYPE_HYSTERESIS,
     DOMAIN,
     ENTITY_ID_FORMAT,
     STEP_CIRCUITS,
@@ -71,7 +74,9 @@ class ExampleConfigFlow(ConfigFlow, domain=DOMAIN):
             if "base" not in errors:
                 self._input_data = user_input
                 self._title = user_input.get(CONFIG_MAIN_THERMOSTAT_NAME)
-                self._id = async_generate_entity_id(ENTITY_ID_FORMAT, self._title, hass=self.hass)
+                self._id = async_generate_entity_id(
+                    ENTITY_ID_FORMAT, self._title, hass=self.hass
+                )
 
                 await self.async_set_unique_id(self._id)
                 self._abort_if_unique_id_configured()
@@ -145,7 +150,18 @@ class ZoneSubentryFlowHandler(ConfigSubentryFlow):
         data_schema = vol.Schema(
             {
                 vol.Required(
-                    CONFIG_TEMPERATURE_SENSOR, default=existing.get(CONFIG_TEMPERATURE_SENSOR)
+                    CONFIG_REGULATOR_TYPE,
+                    default=existing.get(CONFIG_REGULATOR_TYPE, REGULATOR_TYPE_PID),
+                ): selector(
+                    {
+                        "select": {
+                            "options": [REGULATOR_TYPE_PID, REGULATOR_TYPE_HYSTERESIS]
+                        }
+                    }
+                ),
+                vol.Required(
+                    CONFIG_TEMPERATURE_SENSOR,
+                    default=existing.get(CONFIG_TEMPERATURE_SENSOR),
                 ): selector(
                     {
                         "entity": {
@@ -157,7 +173,8 @@ class ZoneSubentryFlowHandler(ConfigSubentryFlow):
                     }
                 ),
                 vol.Optional(
-                    CONFIG_WINDOW_SENSORS, default=existing.get(CONFIG_WINDOW_SENSORS, [])
+                    CONFIG_WINDOW_SENSORS,
+                    default=existing.get(CONFIG_WINDOW_SENSORS, []),
                 ): selector(
                     {
                         "entity": {
@@ -169,7 +186,9 @@ class ZoneSubentryFlowHandler(ConfigSubentryFlow):
                         }
                     }
                 ),
-                vol.Optional(CONFIG_TRVS, default=existing.get(CONFIG_TRVS, [])): selector(
+                vol.Optional(
+                    CONFIG_TRVS, default=existing.get(CONFIG_TRVS, [])
+                ): selector(
                     {
                         "entity": {
                             "filter": {"domain": "climate"},

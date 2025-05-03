@@ -1,5 +1,7 @@
 """Climate Manager integration."""
 
+from typing import cast
+
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import Platform
 from homeassistant.core import HomeAssistant
@@ -9,9 +11,9 @@ from .hub import Hub
 
 PLATFORMS: list[Platform] = [
     Platform.BINARY_SENSOR,
-    # Platform.CLIMATE,
-    # Platform.NUMBER,
-    # Platform.SENSOR,
+    Platform.CLIMATE,
+    Platform.NUMBER,
+    Platform.SENSOR,
     # Platform.SWITCH,
 ]
 
@@ -21,19 +23,33 @@ type HubConfigEntry = ConfigEntry[Hub]
 async def async_setup_entry(hass: HomeAssistant, config_entry: HubConfigEntry) -> bool:
     """Set up Example Integration from a config entry."""
 
+    config_entry.async_on_unload(
+        config_entry.add_update_listener(_async_update_listener)
+    )
+
     zones = [
         item
         for item in config_entry.subentries.values()
         if item.subentry_type == SUBENTRY_TYPE_ZONE
     ]
 
-    config_entry.runtime_data = Hub(hass, config_entry, zones)
+    hub = Hub(hass, config_entry, zones)
+    config_entry.runtime_data = hub
 
     await hass.config_entries.async_forward_entry_setups(config_entry, PLATFORMS)
+
+    hub.initialize()
+
     return True
 
 
+async def _async_update_listener(hass: HomeAssistant, config_entry: ConfigEntry):
+    # TODO: Find a way to remove Kp and Ki entities when PID changes to hysteresis
+    await hass.config_entries.async_reload(config_entry.entry_id)
+
+
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
-    """Unload a config entry."""
+    hub = cast(Hub, entry.runtime_data)
+    hub.destroy()
 
     return await hass.config_entries.async_unload_platforms(entry, PLATFORMS)

@@ -46,6 +46,7 @@
         "entities": {
           "title": "Entities",
           "data": {
+            "regulator_type": "Regulator type",
             "temperature_sensor": "Temperature sensor",
             "window_sensors": "Window sensors",
             "trvs": "TRVs"

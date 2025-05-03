@@ -1,4 +1,4 @@
-"""Binary sensor platform."""
+"""Sensor platform."""
 
 from typing import cast
 
@@ -9,7 +9,6 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from .zone import Zone
 from .hub import Hub, HubBinarySensorBase
-from homeassistant.components.binary_sensor import BinarySensorDeviceClass
 
 
 async def async_setup_entry(
@@ -20,9 +19,9 @@ async def async_setup_entry(
     """Add sensors for passed config_entry in HA."""
     hub = cast(Hub, config_entry.runtime_data)
 
-    async_add_entities(hub.entity_bag.binary_sensors)
+    # async_add_entities(hub.entity_bag.sensors)
     for zone in hub.zones:
         async_add_entities(
-            zone.entity_bag.binary_sensors,
+            zone.entity_bag.sensors,
             config_subentry_id=zone.config_subentry.subentry_id,
         )
