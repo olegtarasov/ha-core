@@ -34,7 +34,7 @@ class ZoneWindow:
 
         return result
 
-    def should_heat(self) -> bool:
+    async def async_should_heat(self) -> bool:
         """
         Decides whether regulator should be active based on whether window is open or closed
         :return: True if regulator needs to be active
@@ -61,7 +61,7 @@ class ZoneWindow:
                 # If the window got closed, we calculate warmup time after which we should restart PID
                 self._warmup_time = dt.now() + timedelta(minutes=5)
 
-            self.window_entity.set_value(window_open)
+            await self.window_entity.async_set_is_on(window_open)
 
         return not window_open and self._warmup_time is None
 

@@ -60,7 +60,7 @@ class Hub(ControllerBase):
 
     async def _async_control_heating(self, _now: datetime) -> None:
         for zone in self.zones:
-            zone.control_temperature()
+            await zone.async_control_temperature()
 
     def initialize(self):
         for zone in self.zones:

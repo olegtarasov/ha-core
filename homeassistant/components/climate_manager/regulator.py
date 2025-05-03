@@ -3,13 +3,14 @@ from simple_pid import PID
 from homeassistant.components.number import NumberMode
 from homeassistant.const import EntityCategory
 from .common import DeviceInfoModel, EntityBag, NumberBase, SensorBase
+from .event_hook import EventHook
 
 
 class RegulatorBase:
     def initialize(self, target_temperature: float) -> None:
         raise NotImplementedError
 
-    def claculate_output(self, cur_temp: float):
+    async def async_claculate_output(self, cur_temp: float):
         raise NotImplementedError
 
     @property
@@ -43,9 +44,12 @@ class PidRegulator(RegulatorBase):
         device_info: DeviceInfoModel,
         average_samples: int = 20,
     ):
+        # Events
+        self.on_coeffs_changed = EventHook()
+
         # Entities
-        self.kp_entity = entity_bag.add_number(PidKpNumber(device_info))
-        self.ki_entity = entity_bag.add_number(PidKiNumber(device_info))
+        self.kp_entity = entity_bag.add_number(PidKpNumber(self, device_info))
+        self.ki_entity = entity_bag.add_number(PidKiNumber(self, device_info))
         self.proportional_entity = entity_bag.add_sensor(
             PidProportionalSensor(device_info)
         )
@@ -72,6 +76,7 @@ class PidRegulator(RegulatorBase):
     @kp.setter
     def kp(self, value: float) -> None:
         self._pid.Kp = value
+        self.kp_entity.set_native_value(value)
 
     @property
     def ki(self) -> float:
@@ -80,6 +85,7 @@ class PidRegulator(RegulatorBase):
     @ki.setter
     def ki(self, value: float) -> None:
         self._pid.Ki = value
+        self.ki_entity.set_native_value(value)
 
     @property
     def enabled(self) -> bool:
@@ -104,7 +110,7 @@ class PidRegulator(RegulatorBase):
     def target_temperature(self, value: float) -> None:
         self._pid.setpoint = value
 
-    def claculate_output(self, cur_temp: float):
+    async def async_claculate_output(self, cur_temp: float):
         if not self.enabled:
             return
 
@@ -112,8 +118,8 @@ class PidRegulator(RegulatorBase):
         if len(self._output) > self._average_samples:
             self._output.pop(0)
 
-        self.proportional_entity.set_value(self._pid.components[0])
-        self.integral_entity.set_value(self._pid.components[1])
+        await self.proportional_entity.async_set_native_value(self._pid.components[0])
+        await self.integral_entity.async_set_native_value(self._pid.components[1])
 
     @property
     def output(self) -> float:
@@ -121,6 +127,11 @@ class PidRegulator(RegulatorBase):
             return 0
 
         return sum(self._output) / len(self._output)
+
+    async def async_coeffs_changed(self):
+        self._pid.Kp = self.kp_entity.native_value
+        self._pid.Ki = self.ki_entity.native_value
+        await self.on_coeffs_changed.async_fire()
 
 
 class HysteresisRegulator(RegulatorBase):
@@ -134,7 +145,7 @@ class HysteresisRegulator(RegulatorBase):
     def initialize(self, target_temperature: float) -> None:
         self._target = target_temperature
 
-    def claculate_output(self, cur_temp: float):
+    async def async_claculate_output(self, cur_temp: float):
         if not self.enabled:
             return
 
@@ -164,28 +175,39 @@ class HysteresisRegulator(RegulatorBase):
         self._target = value
 
 
-class PidKpNumber(NumberBase):
+class PidNumberBase(NumberBase):
     _attr_entity_category = EntityCategory.CONFIG
     _attr_native_min_value = 0
     _attr_native_max_value = 100000
     _attr_native_step = 0.001
+    _attr_mode = NumberMode.BOX
+
+    def __init__(
+        self, name: str, regulator: PidRegulator, device_info: DeviceInfoModel
+    ):
+        super().__init__(name, device_info)
+
+        self._regulator = regulator
+
+    def
+        set_native_value(self, value: float) -> None
+    async def async_set_native_value(self, value: float) -> None:
+        await super().async_set_native_value(value)
+        await self._regulator.async_coeffs_changed()
+
+
+class PidKpNumber(PidNumberBase):
     _attr_native_value = 0.5
-    _attr_mode = NumberMode.BOX
 
-    def __init__(self, device_info: DeviceInfoModel):
-        super().__init__("Kp", device_info)
+    def __init__(self, regulator: PidRegulator, device_info: DeviceInfoModel):
+        super().__init__("Kp", regulator, device_info)
 
 
-class PidKiNumber(NumberBase):
-    _attr_entity_category = EntityCategory.CONFIG
-    _attr_native_min_value = 0
-    _attr_native_max_value = 100000
-    _attr_native_step = 0.001
+class PidKiNumber(PidNumberBase):
     _attr_native_value = 0.001
-    _attr_mode = NumberMode.BOX
 
-    def __init__(self, device_info: DeviceInfoModel):
-        super().__init__("Ki", device_info)
+    def __init__(self, regulator: PidRegulator, device_info: DeviceInfoModel):
+        super().__init__("Ki", regulator, device_info)
 
 
 class PidProportionalSensor(SensorBase):

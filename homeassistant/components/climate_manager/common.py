@@ -75,7 +75,7 @@ class DeviceInfoModel:
         )
 
 
-class HAEntityBase:
+class HAEntityBase(Entity):
     _attr_should_poll = False
     _attr_has_entity_name = True
 
@@ -96,10 +96,9 @@ class SensorBase(HAEntityBase, SensorEntity):
     def __init__(self, name: str, device_info: DeviceInfoModel):
         super().__init__(name, device_info)
 
-    def set_value(self, value: float) -> None:
-        """Update the current value."""
+    async def async_set_native_value(self, value: float) -> None:
         self._attr_native_value = value
-        self.schedule_update_ha_state()
+        self.async_write_ha_state()
 
 
 class BinarySensorBase(HAEntityBase, BinarySensorEntity):
@@ -109,9 +108,9 @@ class BinarySensorBase(HAEntityBase, BinarySensorEntity):
     def __init__(self, name: str, device_info: DeviceInfoModel):
         super().__init__(name, device_info)
 
-    def set_value(self, value: bool) -> None:
+    async def async_set_is_on(self, value: bool) -> None:
         self._attr_is_on = value
-        self.schedule_update_ha_state()
+        self.async_write_ha_state()
 
 
 class NumberBase(HAEntityBase, RestoreNumber):
