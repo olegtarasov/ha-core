@@ -10,7 +10,7 @@ class RegulatorBase:
     def initialize(self, target_temperature: float) -> None:
         raise NotImplementedError
 
-    async def async_claculate_output(self, cur_temp: float):
+    def calculate_output(self, cur_temp: float):
         raise NotImplementedError
 
     @property
@@ -76,7 +76,7 @@ class PidRegulator(RegulatorBase):
     @kp.setter
     def kp(self, value: float) -> None:
         self._pid.Kp = value
-        self.kp_entity.set_native_value(value)
+        self.kp_entity.set_native_value_no_notify(value)
 
     @property
     def ki(self) -> float:
@@ -85,7 +85,7 @@ class PidRegulator(RegulatorBase):
     @ki.setter
     def ki(self, value: float) -> None:
         self._pid.Ki = value
-        self.ki_entity.set_native_value(value)
+        self.ki_entity.set_native_value_no_notify(value)
 
     @property
     def enabled(self) -> bool:
@@ -110,7 +110,7 @@ class PidRegulator(RegulatorBase):
     def target_temperature(self, value: float) -> None:
         self._pid.setpoint = value
 
-    async def async_claculate_output(self, cur_temp: float):
+    def calculate_output(self, cur_temp: float):
         if not self.enabled:
             return
 
@@ -118,8 +118,8 @@ class PidRegulator(RegulatorBase):
         if len(self._output) > self._average_samples:
             self._output.pop(0)
 
-        await self.proportional_entity.async_set_native_value(self._pid.components[0])
-        await self.integral_entity.async_set_native_value(self._pid.components[1])
+        self.proportional_entity.set_native_value(self._pid.components[0])
+        self.integral_entity.set_native_value(self._pid.components[1])
 
     @property
     def output(self) -> float:
@@ -128,10 +128,10 @@ class PidRegulator(RegulatorBase):
 
         return sum(self._output) / len(self._output)
 
-    async def async_coeffs_changed(self):
+    def handle_coeffs_changed(self):
         self._pid.Kp = self.kp_entity.native_value
         self._pid.Ki = self.ki_entity.native_value
-        await self.on_coeffs_changed.async_fire()
+        self.on_coeffs_changed()
 
 
 class HysteresisRegulator(RegulatorBase):
@@ -145,7 +145,7 @@ class HysteresisRegulator(RegulatorBase):
     def initialize(self, target_temperature: float) -> None:
         self._target = target_temperature
 
-    async def async_claculate_output(self, cur_temp: float):
+    def calculate_output(self, cur_temp: float):
         if not self.enabled:
             return
 
@@ -189,11 +189,12 @@ class PidNumberBase(NumberBase):
 
         self._regulator = regulator
 
-    def
-        set_native_value(self, value: float) -> None
-    async def async_set_native_value(self, value: float) -> None:
-        await super().async_set_native_value(value)
-        await self._regulator.async_coeffs_changed()
+    def set_native_value(self, value: float) -> None:
+        super().set_native_value(value)
+        self._regulator.handle_coeffs_changed()
+
+    def set_native_value_no_notify(self, value: float) -> None:
+        super().set_native_value(value)
 
 
 class PidKpNumber(PidNumberBase):

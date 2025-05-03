@@ -95,18 +95,18 @@ class Zone(ControllerBase):
         # Private
         if config_data[CONFIG_REGULATOR_TYPE] == REGULATOR_TYPE_PID:
             pid = PidRegulator(self.entity_bag, self.device_info)
-            pid.on_coeffs_changed += self._async_handle_pid_coeffs_changed
+            pid.on_coeffs_changed += self._handle_pid_coeffs_changed
             self._regulator = pid
         else:
             self._regulator = HysteresisRegulator()
 
         self._cur_temp_retry = RetryTracker()
-        self._regulator_enablers: list[Callable[[], Awaitable[bool]]] = [
-            self._async_climate_enabled,
-            self._async_no_fault,
+        self._regulator_enablers: list[Callable[[], bool]] = [
+            self._climate_enabled,
+            self._no_fault,
         ]
         if self._window is not None:
-            self._regulator_enablers.append(self._window.async_should_heat)
+            self._regulator_enablers.append(self._window.should_heat)
 
     def initialize(self) -> None:
         self._regulator.initialize(self.climate_entity.target_temperature)
@@ -115,19 +115,19 @@ class Zone(ControllerBase):
     def current_temperature(self) -> float | None:
         return get_state_float(self._hass, self._temp_sensor)
 
-    async def async_control_temperature(self) -> None:
+    def control_temperature(self) -> None:
         try:
             if not self._cur_temp_retry.should_try:
                 return
 
-            await self._async_recalculate_regulator_enabled()
+            self._recalculate_regulator_enabled()
             if not self._regulator.enabled:
                 return
 
             cur_temp = self.current_temperature
             if cur_temp is None:
                 self._cur_temp_retry.set_fault()
-                await self.fault_entity.async_set_is_on(True)
+                self.fault_entity.set_is_on(True)
                 _LOGGER.warning(
                     "Failed to get temperature from sensor %s. Will retry in %d senconds.",
                     self._temp_sensor,
@@ -140,17 +140,17 @@ class Zone(ControllerBase):
                         "Zone %s recovered from temperature sensor failure", self._name
                     )
                     self._cur_temp_retry.reset_fault()
-                    await self.fault_entity.async_set_is_on(False)
+                    self.fault_entity.set_is_on(False)
 
-            await self.climate_entity.async_set_current_temperature(cur_temp)
+            self.climate_entity.set_current_temperature(cur_temp)
 
-            await self._regulator.async_claculate_output(cur_temp)
-            await self.output_entity.async_set_native_value(self._regulator.output)
+            self._regulator.calculate_output(cur_temp)
+            self.output_entity.set_native_value(self._regulator.output)
 
             # If we reached here, we recovered from a previous unexpected fault. Clear the fault sensor and log
             if self.fault_entity.is_on:
                 _LOGGER.info("Zone %s recovered from unexpected fault", self._name)
-                await self.fault_entity.async_set_is_on(False)
+                self.fault_entity.set_is_on(False)
         except Exception:
             # Function is called every second, and we don't want to spam the logs
             if not self.fault_entity.is_on:
@@ -159,19 +159,19 @@ class Zone(ControllerBase):
                     self._name,
                     exc_info=True,
                 )
-                await self.fault_entity.async_set_is_on(True)
+                self.fault_entity.set_is_on(True)
 
-    async def _async_recalculate_regulator_enabled(self):
+    def _recalculate_regulator_enabled(self):
         result = True
         for enabler in self._regulator_enablers:
-            result = result and await enabler()
+            result = result and enabler()
 
         self._regulator.enabled = result
 
-    async def _async_climate_enabled(self):
+    def _climate_enabled(self):
         return self.climate_entity.hvac_mode == HVACMode.HEAT
 
-    async def _async_no_fault(self):
+    def _no_fault(self):
         return not self.fault_entity.is_on
 
     def handle_target_temperature_changed(self, value: float) -> None:
@@ -186,9 +186,9 @@ class Zone(ControllerBase):
             if (ki := preset.get("ki")) is not None:
                 pid.ki = float(ki)
 
-    async def _async_handle_pid_coeffs_changed(self):
+    def _handle_pid_coeffs_changed(self):
         pid = cast(PidRegulator, self._regulator)
-        await self.climate_entity.async_save_pid_coeffs(pid.kp, pid.ki)
+        self.climate_entity.save_pid_coeffs(pid.kp, pid.ki)
 
 
 class ZoneClimate(ClimateEntityBase, RestoreEntity):
@@ -213,14 +213,14 @@ class ZoneClimate(ClimateEntityBase, RestoreEntity):
             self._attr_hvac_mode = HVACMode(last.state)
 
         attrs = last.attributes
+        if (presets := attrs.get("presets")) is not None:
+            self._presets = presets
+
         if (tmp := attrs.get("temperature")) is not None:
             self._attr_target_temperature = float(tmp)
 
         if (preset := attrs.get("preset_mode")) in self._attr_preset_modes:
             self._attr_preset_mode = preset
-
-        if (presets := attrs.get("presets")) is not None:
-            self._presets = presets
 
     @property
     def extra_state_attributes(self) -> dict:
@@ -228,9 +228,9 @@ class ZoneClimate(ClimateEntityBase, RestoreEntity):
             "presets": self._presets,
         }
 
-    async def async_set_current_temperature(self, value: float) -> None:
+    def set_current_temperature(self, value: float) -> None:
         self._attr_current_temperature = value
-        self.async_write_ha_state()
+        self.schedule_update_ha_state()
 
     async def async_set_hvac_mode(self, hvac_mode: HVACMode) -> None:
         self._attr_hvac_mode = hvac_mode
@@ -250,26 +250,26 @@ class ZoneClimate(ClimateEntityBase, RestoreEntity):
         self.async_write_ha_state()
 
         if preset_mode in self._presets:
-            await self._async_apply_preset(self._presets[preset_mode])
+            self._apply_preset(self._presets[preset_mode])
 
-    async def async_save_pid_coeffs(self, kp: float, ki: float):
+    def save_pid_coeffs(self, kp: float, ki: float):
         self._set_preset_item("kp", kp)
         self._set_preset_item("ki", ki)
 
-        self.async_write_ha_state()
+        self.schedule_update_ha_state()
 
     def _set_preset_item(self, key: str, value: Any):
         if self.preset_mode not in self._presets:
             self._presets[self.preset_mode] = {}
         self._presets[self.preset_mode][key] = value
 
-    async def _async_apply_preset(self, preset: dict[str, Any]):
+    def _apply_preset(self, preset: dict[str, Any]):
         if (temp := preset.get("temperature")) is not None:
             self._attr_target_temperature = float(temp)
         if (mode := preset.get("mode")) is not None:
             self._attr_preset_mode = mode
 
-        self.async_write_ha_state()
+        self.schedule_update_ha_state()
         self.zone.handle_preset_changed(preset)
 
 

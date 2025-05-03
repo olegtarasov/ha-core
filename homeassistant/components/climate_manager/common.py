@@ -96,9 +96,9 @@ class SensorBase(HAEntityBase, SensorEntity):
     def __init__(self, name: str, device_info: DeviceInfoModel):
         super().__init__(name, device_info)
 
-    async def async_set_native_value(self, value: float) -> None:
+    def set_native_value(self, value: float) -> None:
         self._attr_native_value = value
-        self.async_write_ha_state()
+        self.schedule_update_ha_state()
 
 
 class BinarySensorBase(HAEntityBase, BinarySensorEntity):
@@ -108,9 +108,9 @@ class BinarySensorBase(HAEntityBase, BinarySensorEntity):
     def __init__(self, name: str, device_info: DeviceInfoModel):
         super().__init__(name, device_info)
 
-    async def async_set_is_on(self, value: bool) -> None:
+    async def set_is_on(self, value: bool) -> None:
         self._attr_is_on = value
-        self.async_write_ha_state()
+        self.schedule_update_ha_state()
 
 
 class NumberBase(HAEntityBase, RestoreNumber):
@@ -122,10 +122,10 @@ class NumberBase(HAEntityBase, RestoreNumber):
             if last.native_value is not None:
                 self._attr_native_value = last.native_value
 
-    async def async_set_native_value(self, value: float) -> None:
+    def set_native_value(self, value: float) -> None:
         """Update the current value."""
         self._attr_native_value = value
-        self.async_write_ha_state()
+        self.schedule_update_ha_state()
 
 
 class ClimateEntityBase(HAEntityBase, ClimateEntity):
