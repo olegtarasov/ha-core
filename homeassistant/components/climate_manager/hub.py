@@ -139,7 +139,7 @@ class Hub(ControllerBase):
                 output = max(output, zone.regulator_output)
 
             for circuit in self.circuits.values():
-                circuit.control_circuit()
+                await circuit.control_circuit()
 
             self.output_entity.set_native_value(output)
 
