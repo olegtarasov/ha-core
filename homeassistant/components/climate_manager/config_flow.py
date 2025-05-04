@@ -18,16 +18,20 @@ from homeassistant.core import callback
 from homeassistant.helpers.selector import selector
 
 from .const import (
+    CONFIG_BOILER_STATUS_SENSOR,
     CONFIG_MAIN_THERMOSTAT_NAME,
+    CONFIG_SWITCHES,
     CONFIG_TEMPERATURE_SENSOR,
     CONFIG_TRVS,
     CONFIG_WINDOW_SENSORS,
+    CONFIG_ZONES,
     CONFIG_ZONE_NAME,
     CONFIG_REGULATOR_TYPE,
     REGULATOR_TYPE_PID,
     REGULATOR_TYPE_HYSTERESIS,
     DOMAIN,
     ENTITY_ID_FORMAT,
+    STEP_BOILER,
     STEP_CIRCUITS,
     STEP_ENTITIES,
     STEP_FINISH,
@@ -41,58 +45,75 @@ from .const import (
 _LOGGER = logging.getLogger(__name__)
 
 
-class ExampleConfigFlow(ConfigFlow, domain=DOMAIN):
-    """Handle a config flow for Example Integration."""
-
+class HubConfigFlow(ConfigFlow, domain=DOMAIN):
     VERSION = 1
-    _input_data: dict[str, Any]
     _title: str
-    _id: str
+
+    def __init__(self):
+        self._input_data: dict[str, Any] = {}
 
     async def async_step_user(
         self, user_input: dict[str, Any] | None = None
     ) -> ConfigFlowResult:
-        """Handle the initial step.
-
-        Called when you initiate adding an integration via the UI
-        """
-
         data_schema = vol.Schema(
             {vol.Required(CONFIG_MAIN_THERMOSTAT_NAME, default="Main Thermostat"): str}
         )
 
-        errors: dict[str, str] = {}
-
         if user_input is not None:
-            try:
-                # Validate
-                pass
-            except Exception:  # pylint: disable=broad-except
-                _LOGGER.exception("Unexpected exception")
-                errors["base"] = "unknown"
+            self._input_data = user_input
+            self._title = user_input.get(CONFIG_MAIN_THERMOSTAT_NAME)
+            unique_id = async_generate_entity_id(
+                ENTITY_ID_FORMAT,
+                self._title,
+                hass=self.hass,
+            )
 
-            if "base" not in errors:
-                self._input_data = user_input
-                self._title = user_input.get(CONFIG_MAIN_THERMOSTAT_NAME)
-                self._id = async_generate_entity_id(
-                    ENTITY_ID_FORMAT, self._title, hass=self.hass
-                )
+            await self.async_set_unique_id(unique_id)
+            self._abort_if_unique_id_configured()
 
-                await self.async_set_unique_id(self._id)
-                self._abort_if_unique_id_configured()
-
-                # return await self.async_step_menu()
-                return self.async_create_entry(title=self._title, data=self._input_data)
+            return await self.async_step_boiler()
 
         return self.async_show_form(step_id=STEP_USER, data_schema=data_schema)
 
-    async def async_step_menu(
+    async def async_step_boiler(
         self, user_input: dict[str, Any] | None = None
     ) -> ConfigFlowResult:
-        """Show menu to configure entries."""
-        menu_options = [STEP_CIRCUITS, STEP_ZONES, STEP_FINISH]
+        existing = {}
+        if self.source == SOURCE_RECONFIGURE:
+            existing = self._get_reconfigure_entry().data.copy()
 
-        return self.async_show_menu(step_id=STEP_MENU, menu_options=menu_options)
+        data_schema = vol.Schema(
+            {
+                vol.Optional(
+                    CONFIG_BOILER_STATUS_SENSOR,
+                    default=existing.get(CONFIG_BOILER_STATUS_SENSOR),
+                ): selector(
+                    {
+                        "entity": {
+                            "filter": {
+                                "domain": "binary_sensor",
+                            }
+                        }
+                    }
+                ),
+            }
+        )
+
+        if user_input is not None:
+            self._input_data.update(user_input)
+            if self.source == SOURCE_RECONFIGURE:
+                return self.async_update_reload_and_abort(
+                    self._get_reconfigure_entry(), data_updates=self._input_data
+                )
+
+            return self.async_create_entry(title=self._title, data=self._input_data)
+
+        return self.async_show_form(step_id=STEP_BOILER, data_schema=data_schema)
+
+    async def async_step_reconfigure(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        return await self.async_step_boiler()
 
     @classmethod
     @callback
@@ -180,7 +201,7 @@ class ZoneSubentryFlowHandler(ConfigSubentryFlow):
                         "entity": {
                             "filter": {
                                 "domain": "binary_sensor",
-                                "device_class": "door",
+                                # "device_class": "door",
                             },
                             "multiple": True,
                         }
@@ -272,34 +293,24 @@ class CircuitSubentryFlowHandler(ConfigSubentryFlow):
         data_schema = vol.Schema(
             {
                 vol.Required(
-                    "temperature_sensor", default=existing.get("temperature_sensor")
+                    CONFIG_ZONES, default=existing.get(CONFIG_ZONES, [])
                 ): selector(
                     {
-                        "entity": {
+                        "device": {
                             "filter": {
-                                "domain": "sensor",
-                                "device_class": "temperature",
-                            }
-                        }
-                    }
-                ),
-                vol.Optional(
-                    "window_sensors", default=existing.get("window_sensors", [])
-                ): selector(
-                    {
-                        "entity": {
-                            "filter": {
-                                "domain": "binary_sensor",
-                                "device_class": "door",
+                                "integration": DOMAIN,
+                                "model": "Zone Thermostat",
                             },
                             "multiple": True,
                         }
                     }
                 ),
-                vol.Optional("trvs", default=existing.get("trvs", [])): selector(
+                vol.Optional(
+                    CONFIG_SWITCHES, default=existing.get(CONFIG_SWITCHES, [])
+                ): selector(
                     {
                         "entity": {
-                            "filter": {"domain": "climate"},
+                            "filter": {"domain": "switch"},
                             "multiple": True,
                         }
                     }

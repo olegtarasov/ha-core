@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from typing import TypeVar
+
 from homeassistant.helpers.entity import Entity
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.device_registry import DeviceInfo
@@ -25,30 +27,6 @@ from homeassistant.const import EntityCategory, UnitOfTemperature
 
 from .const import DOMAIN
 from homeassistant.components.number import RestoreNumber
-
-
-class EntityBag:
-    def __init__(self):
-        self.binary_sensors: list[Entity] = []
-        self.sensors: list[Entity] = []
-        self.climates: list[Entity] = []
-        self.numbers: list[Entity] = []
-
-    def add_binary_sensor(self, sensor: BinarySensorBase) -> BinarySensorBase:
-        self.binary_sensors.append(sensor)
-        return sensor
-
-    def add_sensor(self, sensor: SensorBase) -> SensorBase:
-        self.sensors.append(sensor)
-        return sensor
-
-    def add_climate(self, climate: ClimateEntityBase) -> ClimateEntityBase:
-        self.climates.append(climate)
-        return climate
-
-    def add_number(self, number: NumberBase) -> NumberBase:
-        self.numbers.append(number)
-        return number
 
 
 class ControllerBase:
@@ -108,7 +86,7 @@ class BinarySensorBase(HAEntityBase, BinarySensorEntity):
     def __init__(self, name: str, device_info: DeviceInfoModel):
         super().__init__(name, device_info)
 
-    async def set_is_on(self, value: bool) -> None:
+    def set_is_on(self, value: bool) -> None:
         self._attr_is_on = value
         self.schedule_update_ha_state()
 
@@ -128,7 +106,7 @@ class NumberBase(HAEntityBase, RestoreNumber):
         self.schedule_update_ha_state()
 
 
-class ClimateEntityBase(HAEntityBase, ClimateEntity):
+class ClimateBase(HAEntityBase, ClimateEntity):
     _attr_supported_features = (
         ClimateEntityFeature.TARGET_TEMPERATURE
         | ClimateEntityFeature.PRESET_MODE
@@ -146,10 +124,35 @@ class ClimateEntityBase(HAEntityBase, ClimateEntity):
     def __init__(self, name: str, device_info: DeviceInfoModel):
         super().__init__(name, device_info)
 
+    def set_current_temperature(self, value: float) -> None:
+        self._attr_current_temperature = value
+        self.schedule_update_ha_state()
 
-class FaultSensor(BinarySensorBase):
-    _attr_entity_category = EntityCategory.DIAGNOSTIC
-    _attr_device_class = BinarySensorDeviceClass.PROBLEM
 
-    def __init__(self, device_info: DeviceInfoModel):
-        super().__init__("Fault", device_info)
+class EntityBag:
+    def __init__(self):
+        self.binary_sensors: list[Entity] = []
+        self.sensors: list[Entity] = []
+        self.climates: list[Entity] = []
+        self.numbers: list[Entity] = []
+
+    TBinarySensorEntity = TypeVar("TBinarySensorEntity", bound=BinarySensorBase)
+    TSensorEntity = TypeVar("TSensorEntity", bound=SensorBase)
+    TClimateEntity = TypeVar("TClimateEntity", bound=ClimateBase)
+    TNumberEntity = TypeVar("TNumberEntity", bound=NumberBase)
+
+    def add_binary_sensor(self, sensor: TBinarySensorEntity) -> TBinarySensorEntity:
+        self.binary_sensors.append(sensor)
+        return sensor
+
+    def add_sensor(self, sensor: TSensorEntity) -> TSensorEntity:
+        self.sensors.append(sensor)
+        return sensor
+
+    def add_climate(self, climate: TClimateEntity) -> TClimateEntity:
+        self.climates.append(climate)
+        return climate
+
+    def add_number(self, number: TNumberEntity) -> TNumberEntity:
+        self.numbers.append(number)
+        return number

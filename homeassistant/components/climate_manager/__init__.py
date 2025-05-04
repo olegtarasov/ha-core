@@ -5,8 +5,7 @@ from typing import cast
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import Platform
 from homeassistant.core import HomeAssistant
-
-from .const import DOMAIN, SUBENTRY_TYPE_ZONE
+from .const import DOMAIN, SUBENTRY_TYPE_CIRCUIT, SUBENTRY_TYPE_ZONE
 from .hub import Hub
 
 PLATFORMS: list[Platform] = [
@@ -32,8 +31,13 @@ async def async_setup_entry(hass: HomeAssistant, config_entry: HubConfigEntry) -
         for item in config_entry.subentries.values()
         if item.subentry_type == SUBENTRY_TYPE_ZONE
     ]
+    circuits = [
+        item
+        for item in config_entry.subentries.values()
+        if item.subentry_type == SUBENTRY_TYPE_CIRCUIT
+    ]
 
-    hub = Hub(hass, config_entry, zones)
+    hub = Hub(hass, config_entry, zones, circuits)
     config_entry.runtime_data = hub
 
     await hass.config_entries.async_forward_entry_setups(config_entry, PLATFORMS)

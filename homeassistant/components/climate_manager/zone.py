@@ -1,9 +1,11 @@
 """Heating zone."""
 
 import logging
+from datetime import timedelta
 from typing import Any, Awaitable, Callable, cast
 
 from homeassistant.helpers.entity import Entity
+from .online_tracker import OnlineTracker
 from .window import ZoneWindow
 from homeassistant.helpers.restore_state import RestoreEntity
 from homeassistant.components.binary_sensor import (
@@ -26,10 +28,9 @@ from homeassistant.const import EntityCategory
 from homeassistant.core import HomeAssistant
 from .common import (
     BinarySensorBase,
-    ClimateEntityBase,
+    ClimateBase,
     ControllerBase,
     DeviceInfoModel,
-    FaultSensor,
     HAEntityBase,
     NumberBase,
     SensorBase,
@@ -43,7 +44,7 @@ from .const import (
 )
 from .regulator import HysteresisRegulator, PidRegulator, RegulatorBase
 from .retry_tracker import RetryTracker
-from .utils import get_state_bool, get_state_float
+from .utils import SimpleAwaiter, get_state_bool, get_state_float
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -58,7 +59,7 @@ class Zone(ControllerBase):
 
         # Device
         self.device_info = DeviceInfoModel(
-            self._name, self._unique_id, "Virtual Room Thermostat"
+            self._name, self._unique_id, "Zone Thermostat"
         )
 
         # Config
@@ -85,11 +86,19 @@ class Zone(ControllerBase):
         self.climate_entity = cast(
             ZoneClimate, self.entity_bag.add_climate(ZoneClimate(self))
         )
-        self.fault_entity = self.entity_bag.add_binary_sensor(
-            FaultSensor(self.device_info)
+        self.sensor_fault_entity = self.entity_bag.add_binary_sensor(
+            ZoneSensorFaultSensor(self.device_info)
+        )
+        self.control_fault_entity = self.entity_bag.add_binary_sensor(
+            ZoneControlFaultSensor(self.device_info)
         )
         self.output_entity = self.entity_bag.add_sensor(
             ZoneOutputSensor(self.device_info)
+        )
+        self.trv_entity = (
+            self.entity_bag.add_binary_sensor(ZoneTrvSensor(self.device_info))
+            if self._trvs
+            else None
         )
 
         # Private
@@ -100,13 +109,19 @@ class Zone(ControllerBase):
         else:
             self._regulator = HysteresisRegulator()
 
-        self._cur_temp_retry = RetryTracker()
         self._regulator_enablers: list[Callable[[], bool]] = [
             self._climate_enabled,
-            self._no_fault,
+            self._no_sensor_fault,
         ]
-        if self._window is not None:
+        if self._window:
             self._regulator_enablers.append(self._window.should_heat)
+
+        self._sensor_online_tracker = OnlineTracker(
+            self.sensor_fault_entity,
+            timedelta(seconds=5),
+            f"{self._name} temperature",
+            None,
+        )
 
     def initialize(self) -> None:
         self._regulator.initialize(self.climate_entity.target_temperature)
@@ -115,51 +130,65 @@ class Zone(ControllerBase):
     def current_temperature(self) -> float | None:
         return get_state_float(self._hass, self._temp_sensor)
 
+    @property
+    def target_temperature(self) -> float | None:
+        return self.climate_entity.target_temperature
+
+    @property
+    def regulator_output(self) -> float:
+        return self._regulator.output
+
     def control_temperature(self) -> None:
         try:
-            if not self._cur_temp_retry.should_try:
-                return
+            cur_temp = self.current_temperature
 
+            # If the sensor remains offline for longer than 5 sec, fault entity will be set
+            self._sensor_online_tracker.is_online(cur_temp is not None)
+
+            # If there is a fault or a window is open, we disable PID
             self._recalculate_regulator_enabled()
             if not self._regulator.enabled:
                 return
 
-            cur_temp = self.current_temperature
+            # The temp sensor can be temporarily offline, but we give it a chance to recover without pausing PID.
             if cur_temp is None:
-                self._cur_temp_retry.set_fault()
-                self.fault_entity.set_is_on(True)
-                _LOGGER.warning(
-                    "Failed to get temperature from sensor %s. Will retry in %d senconds.",
-                    self._temp_sensor,
-                    self._cur_temp_retry.cur_delay,
-                )
                 return
-            else:
-                if self._cur_temp_retry.is_fault:
-                    _LOGGER.info(
-                        "Zone %s recovered from temperature sensor failure", self._name
-                    )
-                    self._cur_temp_retry.reset_fault()
-                    self.fault_entity.set_is_on(False)
 
             self.climate_entity.set_current_temperature(cur_temp)
 
             self._regulator.calculate_output(cur_temp)
-            self.output_entity.set_native_value(self._regulator.output)
+            output = self._regulator.output
+            self.output_entity.set_native_value(output)
+
+            # Operate TRVs
+            if self._trvs:
+                # If windows are open, save TRV batteries and do nothing
+                if not self._window or self._window.should_heat():
+                    self.operate_trvs(output)
 
             # If we reached here, we recovered from a previous unexpected fault. Clear the fault sensor and log
-            if self.fault_entity.is_on:
-                _LOGGER.info("Zone %s recovered from unexpected fault", self._name)
-                self.fault_entity.set_is_on(False)
+            if self.control_fault_entity.is_on:
+                _LOGGER.info("Zone %s recovered from control fault", self._name)
+                self.control_fault_entity.set_is_on(False)
         except Exception:
             # Function is called every second, and we don't want to spam the logs
-            if not self.fault_entity.is_on:
+            if not self.control_fault_entity.is_on:
                 _LOGGER.error(
                     "Exception occured while trying to control heating in zone %s",
                     self._name,
                     exc_info=True,
                 )
-                self.fault_entity.set_is_on(True)
+                self.control_fault_entity.set_is_on(True)
+
+    def operate_trvs(self, output: float) -> None:
+        mode = "heat" if output > 0 else "off"
+        for trv in self._trvs:
+            self._hass.services.call(
+                "climate", "set_hvac_mode", {"entity_id": trv, "hvac_mode": mode}
+            )
+
+        if self.trv_entity:
+            self.trv_entity.set_is_on(output > 0)
 
     def _recalculate_regulator_enabled(self):
         result = True
@@ -171,8 +200,8 @@ class Zone(ControllerBase):
     def _climate_enabled(self):
         return self.climate_entity.hvac_mode == HVACMode.HEAT
 
-    def _no_fault(self):
-        return not self.fault_entity.is_on
+    def _no_sensor_fault(self):
+        return not self.sensor_fault_entity.is_on
 
     def handle_target_temperature_changed(self, value: float) -> None:
         self._regulator.target_temperature = value
@@ -191,7 +220,23 @@ class Zone(ControllerBase):
         self.climate_entity.save_pid_coeffs(pid.kp, pid.ki)
 
 
-class ZoneClimate(ClimateEntityBase, RestoreEntity):
+class ZoneControlFaultSensor(BinarySensorBase):
+    _attr_entity_category = EntityCategory.DIAGNOSTIC
+    _attr_device_class = BinarySensorDeviceClass.PROBLEM
+
+    def __init__(self, device_info: DeviceInfoModel):
+        super().__init__("Control Fault", device_info)
+
+
+class ZoneSensorFaultSensor(BinarySensorBase):
+    _attr_entity_category = EntityCategory.DIAGNOSTIC
+    _attr_device_class = BinarySensorDeviceClass.PROBLEM
+
+    def __init__(self, device_info: DeviceInfoModel):
+        super().__init__("Sensor Fault", device_info)
+
+
+class ZoneClimate(ClimateBase, RestoreEntity):
     _attr_target_temperature = 22
     _attr_min_temp = 18
     _attr_max_temp = 32
@@ -227,10 +272,6 @@ class ZoneClimate(ClimateEntityBase, RestoreEntity):
         return {
             "presets": self._presets,
         }
-
-    def set_current_temperature(self, value: float) -> None:
-        self._attr_current_temperature = value
-        self.schedule_update_ha_state()
 
     async def async_set_hvac_mode(self, hvac_mode: HVACMode) -> None:
         self._attr_hvac_mode = hvac_mode
@@ -276,9 +317,17 @@ class ZoneClimate(ClimateEntityBase, RestoreEntity):
 class ZoneOutputSensor(SensorBase):
 
     _attr_entity_category = EntityCategory.DIAGNOSTIC
-    _attr_device_class = SensorDeviceClass
     _attr_suggested_display_precision = 4
     _attr_icon = "mdi:gauge"
 
     def __init__(self, device_info: DeviceInfoModel):
         super().__init__("Output", device_info)
+
+
+# TODO: Refactor in its own class like Window
+class ZoneTrvSensor(BinarySensorBase):
+    _attr_entity_category = EntityCategory.DIAGNOSTIC
+    _attr_device_class = BinarySensorDeviceClass.HEAT
+
+    def __init__(self, device_info: DeviceInfoModel):
+        super().__init__("TRV", device_info)

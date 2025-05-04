@@ -53,6 +53,27 @@
           }
         }
       }
+    },
+    "circuit": {
+      "flow_title": "Heating circuit",
+      "initiate_flow": {
+        "user": "Heating circuit"
+      },
+      "step": {
+        "user": {
+          "title": "Heating circuit",
+          "data": {
+            "circuit_name": "Circuit name"
+          }
+        },
+        "entities": {
+          "title": "Entities",
+          "data": {
+            "zones": "Heating zones",
+            "switches": "Switches"
+          }
+        }
+      }
     }
   }
 }
