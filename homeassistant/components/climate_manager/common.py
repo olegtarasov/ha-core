@@ -2,34 +2,29 @@ from __future__ import annotations
 
 from typing import TypeVar
 
-from homeassistant.helpers.entity import Entity
-from homeassistant.core import HomeAssistant
-from homeassistant.helpers.device_registry import DeviceInfo
-from homeassistant.util import slugify
-from homeassistant.components.climate import ClimateEntity
+from homeassistant.components.binary_sensor import BinarySensorEntity
 from homeassistant.components.climate import (
-    ClimateEntityFeature,
-    HVACMode,
+    PRESET_AWAY,
     PRESET_HOME,
     PRESET_SLEEP,
-    PRESET_AWAY,
+    ClimateEntity,
+    ClimateEntityFeature,
+    HVACMode,
 )
-from homeassistant.components.binary_sensor import (
-    BinarySensorDeviceClass,
-    BinarySensorEntity,
-)
-from homeassistant.components.sensor import (
-    SensorEntity,
-    SensorDeviceClass,
-    SensorStateClass,
-)
-from homeassistant.const import EntityCategory, UnitOfTemperature
+from homeassistant.components.number import RestoreNumber
+from homeassistant.components.sensor import SensorEntity, SensorStateClass
+from homeassistant.const import UnitOfTemperature
+from homeassistant.core import HomeAssistant
+from homeassistant.helpers.device_registry import DeviceInfo
+from homeassistant.helpers.entity import Entity
+from homeassistant.util import slugify
 
 from .const import DOMAIN
-from homeassistant.components.number import RestoreNumber
 
 
 class ControllerBase:
+    """Base class for controllers, providing common initialization and an entity bag for managing entities."""
+
     def __init__(self, hass: HomeAssistant, name: str):
         self._hass = hass
         self._name = name
@@ -39,12 +34,16 @@ class ControllerBase:
 
 
 class DeviceInfoModel:
+    """Model for storing device information and providing a DeviceInfo object."""
+
     def __init__(self, name: str, identifier: str, model: str):
+        """Intialize."""
         self.model = model
         self.identifier = identifier
         self.name = name
 
     def get_device_info(self) -> DeviceInfo:
+        """Return the DeviceInfo object for the device."""
         return DeviceInfo(
             name=self.name,
             identifiers={(DOMAIN, self.identifier)},
@@ -54,59 +53,70 @@ class DeviceInfoModel:
 
 
 class HAEntityBase(Entity):
+    """Base class for HA entities, providing common attributes and initialization."""
     _attr_should_poll = False
     _attr_has_entity_name = True
 
     def __init__(self, name: str, device_info: DeviceInfoModel):
+        """Intialize."""
         self._attr_name = name
-        self._attr_unique_id = f"{DOMAIN}_{slugify(f"{device_info.name} {name}")}"
+        self._attr_unique_id = f"{DOMAIN}_{slugify(f'{device_info.name} {name}')}"
         self._device_info = device_info
 
     @property
     def device_info(self) -> DeviceInfo | None:
+        """Return the device information."""
         return self._device_info.get_device_info()
 
 
 class SensorBase(HAEntityBase, SensorEntity):
-
+    """Base class for sensor entities, providing common attributes and functionality."""
     _attr_state_class = SensorStateClass.MEASUREMENT
 
     def __init__(self, name: str, device_info: DeviceInfoModel):
+        """Intialize."""
         super().__init__(name, device_info)
 
     def set_native_value(self, value: float) -> None:
+        """Update the native value of the sensor."""
         self._attr_native_value = value
         self.schedule_update_ha_state()
 
 
 class BinarySensorBase(HAEntityBase, BinarySensorEntity):
-
+    """Base class for binary sensor entities, providing common attributes and functionality."""
     _attr_is_on = False
 
     def __init__(self, name: str, device_info: DeviceInfoModel):
+        """Intialize."""
         super().__init__(name, device_info)
 
     def set_is_on(self, value: bool) -> None:
+        """Update the on/off state of the binary sensor."""
         self._attr_is_on = value
         self.schedule_update_ha_state()
 
 
 class NumberBase(HAEntityBase, RestoreNumber):
+    """Base class for number entities, providing common attributes and functionality."""
     def __init__(self, name: str, device_info: DeviceInfoModel):
+        """Intialize."""
         super().__init__(name, device_info)
 
     async def async_added_to_hass(self) -> None:
+        """Initialize the number entity, restoring last known value if available."""
         if (last := await self.async_get_last_number_data()) is not None:
             if last.native_value is not None:
                 self._attr_native_value = last.native_value
 
     def set_native_value(self, value: float) -> None:
-        """Update the current value."""
+        """Update the current value of the number entity."""
         self._attr_native_value = value
         self.schedule_update_ha_state()
 
 
 class ClimateBase(HAEntityBase, ClimateEntity):
+    """Base class for climate entities, providing common attributes and functionality."""
     _attr_supported_features = (
         ClimateEntityFeature.TARGET_TEMPERATURE
         | ClimateEntityFeature.PRESET_MODE
@@ -122,15 +132,19 @@ class ClimateBase(HAEntityBase, ClimateEntity):
     _attr_temperature_unit = UnitOfTemperature.CELSIUS
 
     def __init__(self, name: str, device_info: DeviceInfoModel):
+        """Intialize."""
         super().__init__(name, device_info)
 
     def set_current_temperature(self, value: float) -> None:
+        """Update the current temperature of the climate entity."""
         self._attr_current_temperature = value
         self.schedule_update_ha_state()
 
 
 class EntityBag:
+    """Container for managing lists of entities of different types."""
     def __init__(self):
+        """Intialize."""
         self.binary_sensors: list[Entity] = []
         self.sensors: list[Entity] = []
         self.climates: list[Entity] = []
@@ -142,17 +156,21 @@ class EntityBag:
     TNumberEntity = TypeVar("TNumberEntity", bound=NumberBase)
 
     def add_binary_sensor(self, sensor: TBinarySensorEntity) -> TBinarySensorEntity:
+        """Add a binary sensor to the list."""
         self.binary_sensors.append(sensor)
         return sensor
 
     def add_sensor(self, sensor: TSensorEntity) -> TSensorEntity:
+        """Add a sensor to the list."""
         self.sensors.append(sensor)
         return sensor
 
     def add_climate(self, climate: TClimateEntity) -> TClimateEntity:
+        """Add a climate entity to the list."""
         self.climates.append(climate)
         return climate
 
     def add_number(self, number: TNumberEntity) -> TNumberEntity:
+        """Add a number entity to the list."""
         self.numbers.append(number)
         return number

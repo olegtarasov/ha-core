@@ -83,9 +83,7 @@ class Zone(ControllerBase):
         )
 
         # Entities
-        self.climate_entity = cast(
-            ZoneClimate, self.entity_bag.add_climate(ZoneClimate(self))
-        )
+        self.climate_entity = self.entity_bag.add_climate(ZoneClimate(self))
         self.sensor_fault_entity = self.entity_bag.add_binary_sensor(
             ZoneSensorFaultSensor(self.device_info)
         )
@@ -189,6 +187,18 @@ class Zone(ControllerBase):
 
         if self.trv_entity:
             self.trv_entity.set_is_on(output > 0)
+
+    async def set_target_temperature_from_circuit(self, value: float) -> None:
+        """Set target temperature through climate entity as if initiated from UI."""
+        await self.climate_entity.async_set_temperature(temperature=value)
+
+    async def set_hvac_mode_from_circuit(self, value: HVACMode) -> None:
+        """Set HVAC mode through climate entity as if initiated from UI."""
+        await self.climate_entity.async_set_hvac_mode(value)
+
+    async def set_preset_from_circuit(self, value: str) -> None:
+        """Set preset through climate entity as if initiated from UI."""
+        await self.climate_entity.async_set_preset_mode(value)
 
     def _recalculate_regulator_enabled(self):
         result = True
@@ -308,7 +318,7 @@ class ZoneClimate(ClimateBase, RestoreEntity):
         if (temp := preset.get("temperature")) is not None:
             self._attr_target_temperature = float(temp)
         if (mode := preset.get("mode")) is not None:
-            self._attr_preset_mode = mode
+            self._attr_hvac_mode = mode
 
         self.schedule_update_ha_state()
         self.zone.handle_preset_changed(preset)
