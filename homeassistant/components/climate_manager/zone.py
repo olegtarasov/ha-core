@@ -84,6 +84,9 @@ class Zone(ControllerBase):
             if self._trvs
             else None
         )
+        self.regulator_active_entity = self.entity_bag.add_binary_sensor(
+            ZoneRegulatorActiveSensor(self.device_info)
+        )
 
         # Private
         if config_data[CONFIG_REGULATOR_TYPE] == REGULATOR_TYPE_PID:
@@ -126,13 +129,13 @@ class Zone(ControllerBase):
         """Get the output value from the regulator."""
         return self._regulator.output
 
-    def control_temperature(self) -> None:
+    async def control_temperature(self) -> None:
         """Control the temperature of the zone based on current conditions."""
         try:
             cur_temp = self.current_temperature
 
             # If the sensor remains offline for longer than 5 sec, fault entity will be set
-            self._sensor_online_tracker.is_online(cur_temp is not None)
+            await self._sensor_online_tracker.is_online(cur_temp is not None)
 
             # If there is a fault or a window is open, we disable PID
             self._recalculate_regulator_enabled()
@@ -153,7 +156,7 @@ class Zone(ControllerBase):
             if self._trvs:
                 # If windows are open, save TRV batteries and do nothing
                 if not self._window or self._window.should_heat():
-                    self.operate_trvs(output)
+                    await self.operate_trvs(output)
 
             # If we reached here, we recovered from a previous unexpected fault. Clear the fault sensor and log
             if self.control_fault_entity.is_on:
@@ -168,11 +171,11 @@ class Zone(ControllerBase):
                 )
                 self.control_fault_entity.set_is_on(True)
 
-    def operate_trvs(self, output: float) -> None:
+    async def operate_trvs(self, output: float) -> None:
         """Operate the TRVs based on the regulator output."""
         mode = "heat" if output > 0 else "off"
         for trv in self._trvs:
-            self._hass.services.call(
+            await self._hass.services.async_call(
                 "climate", "set_hvac_mode", {"entity_id": trv, "hvac_mode": mode}
             )
 
@@ -198,6 +201,7 @@ class Zone(ControllerBase):
             result = result and enabler()
 
         self._regulator.enabled = result
+        self.regulator_active_entity.set_is_on(result)
 
     def _climate_enabled(self):
         """Check if the climate entity is enabled for heating."""
@@ -227,7 +231,9 @@ class Zone(ControllerBase):
         self.climate_entity.save_pid_coeffs(pid.kp, pid.ki)
 
 
-class ZoneControlFaultSensor(BinarySensorBase):  # pylint: disable=hass-enforce-class-module
+class ZoneControlFaultSensor(
+    BinarySensorBase
+):  # pylint: disable=hass-enforce-class-module
     """Sensor to indicate control faults in the zone."""
 
     _attr_entity_category = EntityCategory.DIAGNOSTIC
@@ -238,7 +244,9 @@ class ZoneControlFaultSensor(BinarySensorBase):  # pylint: disable=hass-enforce-
         super().__init__("Control Fault", device_info)
 
 
-class ZoneSensorFaultSensor(BinarySensorBase):  # pylint: disable=hass-enforce-class-module
+class ZoneSensorFaultSensor(
+    BinarySensorBase
+):  # pylint: disable=hass-enforce-class-module
     """Sensor to indicate sensor faults in the zone."""
 
     _attr_entity_category = EntityCategory.DIAGNOSTIC
@@ -249,7 +257,22 @@ class ZoneSensorFaultSensor(BinarySensorBase):  # pylint: disable=hass-enforce-c
         super().__init__("Sensor Fault", device_info)
 
 
-class ZoneClimate(ClimateBase, RestoreEntity):  # pylint: disable=hass-enforce-class-module
+class ZoneRegulatorActiveSensor(
+    BinarySensorBase
+):  # pylint: disable=hass-enforce-class-module
+    """Sensor to indicate whether regulator is active."""
+
+    _attr_entity_category = EntityCategory.DIAGNOSTIC
+    _attr_device_class = BinarySensorDeviceClass.RUNNING
+
+    def __init__(self, device_info: DeviceInfoModel) -> None:
+        """Initialize the sensor fault sensor."""
+        super().__init__("Regulator Active", device_info)
+
+
+class ZoneClimate(
+    ClimateBase, RestoreEntity
+):  # pylint: disable=hass-enforce-class-module
     """Climate entity for the heating zone."""
 
     _attr_target_temperature = 22

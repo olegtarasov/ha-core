@@ -1,8 +1,10 @@
 """Online tracker."""
 
+import asyncio
 from collections.abc import Callable
 from datetime import timedelta
 import logging
+from typing import Awaitable
 
 from .common import BinarySensorBase
 from .utils import SimpleAwaiter
@@ -18,7 +20,7 @@ class OnlineTracker:
         fault_entity: BinarySensorBase,
         wait_interval: timedelta,
         sensor_name: str,
-        became_offline_callback: Callable[[], None] | None,
+        became_offline_callback: Callable[[], Awaitable[None] | None] | None,
     ) -> None:
         """Initialize the OnlineTracker with necessary parameters."""
         self._wait_interval = wait_interval
@@ -27,7 +29,7 @@ class OnlineTracker:
         self._became_offline_callback = became_offline_callback
         self._awaiter: SimpleAwaiter | None = None
 
-    def is_online(self, online_raw: bool) -> bool:
+    async def is_online(self, online_raw: bool) -> bool:
         """Determine if the sensor is online, considering fault states and wait intervals."""
         if not online_raw:
             if self._fault_entity.is_on:
@@ -53,7 +55,9 @@ class OnlineTracker:
                     self._wait_interval,
                 )
                 if self._became_offline_callback:
-                    self._became_offline_callback()
+                    cr = self._became_offline_callback()
+                    if asyncio.iscoroutine(cr):
+                        await cr
 
                 self._fault_entity.set_is_on(True)
 

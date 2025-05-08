@@ -118,14 +118,14 @@ class Hub(ControllerBase):
             boiler_online = get_state_bool(
                 self._hass, self.boiler_online_sensor, default=False
             )
-            if not self._boiler_online_tracker.is_online(boiler_online):
+            if not await self._boiler_online_tracker.is_online(boiler_online):
                 return
 
         try:
             output = 0.0
 
             for zone in self.zones.values():
-                zone.control_temperature()
+                await zone.control_temperature()
                 output = max(output, zone.regulator_output)
 
             for circuit in self.circuits.values():
@@ -146,16 +146,18 @@ class Hub(ControllerBase):
                 )
                 self.control_fault_entity.set_is_on(True)
 
-    def _open_trvs_start_pumps(self):
+    async def _open_trvs_start_pumps(self):
         """Start pumps and open TRVs to circulate heating."""
         _LOGGER.info("Starting pumps and opening TRVs")
         for zone in self.zones.values():
-            zone.operate_trvs(1)
+            await zone.operate_trvs(1)
         for circuit in self.circuits.values():
-            circuit.set_active(True)
+            await circuit.set_active(True)
 
 
-class HubControlFaultSensor(BinarySensorBase):  # pylint: disable=hass-enforce-class-module
+class HubControlFaultSensor(
+    BinarySensorBase
+):  # pylint: disable=hass-enforce-class-module
     """Binary sensor indicating control fault in the hub."""
 
     _attr_entity_category = EntityCategory.DIAGNOSTIC
@@ -166,7 +168,9 @@ class HubControlFaultSensor(BinarySensorBase):  # pylint: disable=hass-enforce-c
         super().__init__("Control Fault", device_info)
 
 
-class HubBoilerFaultSensor(BinarySensorBase):  # pylint: disable=hass-enforce-class-module
+class HubBoilerFaultSensor(
+    BinarySensorBase
+):  # pylint: disable=hass-enforce-class-module
     """Binary sensor indicating boiler fault in the hub."""
 
     _attr_entity_category = EntityCategory.DIAGNOSTIC
