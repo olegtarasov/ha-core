@@ -51,7 +51,6 @@ class Circuit(ControllerBase):
         target_temps: set[float] = set()
         hvac_modes: set[HVACMode] = set()
         preset_modes: set[str] = set()
-        any_trv_open = False
         any_output = False
 
         for zone in self.zones:
@@ -67,9 +66,6 @@ class Circuit(ControllerBase):
                 hvac_modes.add(zone.climate_entity.hvac_mode)
             if zone.climate_entity.preset_mode:
                 preset_modes.add(zone.climate_entity.preset_mode)
-            any_trv_open = any_trv_open or (
-                zone.trv_entity.is_on if zone.trv_entity else False
-            )
             any_output = any_output or zone.regulator_output > 0
 
         self.climate.set_current_temperature(cur_temp)
@@ -83,7 +79,7 @@ class Circuit(ControllerBase):
             preset_modes.pop() if len(preset_modes) == 1 else None
         )
 
-        await self.set_active(any_output or any_trv_open)
+        await self.set_active(any_output)
 
     async def set_active(self, value: bool) -> None:
         """Set heating circuit as active."""
@@ -112,7 +108,9 @@ class Circuit(ControllerBase):
             await zone.set_preset_from_circuit(value)
 
 
-class CircuitActiveSensor(BinarySensorBase):  # pylint: disable=hass-enforce-class-module
+class CircuitActiveSensor(
+    BinarySensorBase
+):  # pylint: disable=hass-enforce-class-module
     """Circuit active sensor."""
 
     _attr_entity_category = EntityCategory.DIAGNOSTIC

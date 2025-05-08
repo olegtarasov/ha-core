@@ -140,6 +140,8 @@ class PidRegulator(RegulatorBase):
     def reset(self) -> None:
         """Reset the PID regulator."""
         self._pid.reset()
+        self.proportional_entity.set_native_value(self._pid.components[0])
+        self.integral_entity.set_native_value(self._pid.components[1])
 
     def calculate_output(self, cur_temp: float):
         """Calculate the output of the PID regulator based on the current temperature."""
