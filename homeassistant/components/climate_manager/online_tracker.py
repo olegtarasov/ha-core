@@ -1,10 +1,9 @@
 """Online tracker."""
 
 import asyncio
-from collections.abc import Callable
+from collections.abc import Awaitable, Callable
 from datetime import timedelta
 import logging
-from typing import Awaitable
 
 from .common import BinarySensorBase
 from .utils import SimpleAwaiter
