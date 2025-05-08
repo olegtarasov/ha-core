@@ -204,6 +204,8 @@ class HysteresisRegulator(RegulatorBase):
 
 
 class PidNumberBase(NumberBase):
+    """Base entity for PID number."""
+
     _attr_entity_category = EntityCategory.CONFIG
     _attr_native_min_value = 0
     _attr_native_max_value = 100000
@@ -229,6 +231,8 @@ class PidNumberBase(NumberBase):
 
 
 class PidKpNumber(PidNumberBase):
+    """PID Kp."""
+
     _attr_native_value = 0.5
 
     def __init__(self, regulator: PidRegulator, device_info: DeviceInfoModel):
@@ -237,6 +241,8 @@ class PidKpNumber(PidNumberBase):
 
 
 class PidKiNumber(PidNumberBase):
+    """PID Ki."""
+
     _attr_native_value = 0.001
 
     def __init__(self, regulator: PidRegulator, device_info: DeviceInfoModel):
@@ -245,6 +251,8 @@ class PidKiNumber(PidNumberBase):
 
 
 class PidProportionalSensor(SensorBase):
+    """PID proportional sensor."""
+
     _attr_entity_category = EntityCategory.DIAGNOSTIC
     _attr_suggested_display_precision = 4
     _attr_icon = "mdi:gauge"
@@ -255,6 +263,8 @@ class PidProportionalSensor(SensorBase):
 
 
 class PidIntegralSensor(SensorBase):
+    """PID integral sensor."""
+
     _attr_entity_category = EntityCategory.DIAGNOSTIC
     _attr_suggested_display_precision = 4
     _attr_icon = "mdi:gauge"

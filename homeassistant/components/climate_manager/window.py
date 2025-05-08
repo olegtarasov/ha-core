@@ -9,6 +9,8 @@ from .utils import get_state_bool
 
 
 class ZoneWindow:
+    """Zone window."""
+
     def __init__(
         self,
         hass: HomeAssistant,
@@ -16,6 +18,7 @@ class ZoneWindow:
         device_info: DeviceInfoModel,
         entity_bag: EntityBag,
     ):
+        """Initialize the ZoneWindow with the specified parameters."""
         self._window_sensors = window_sensors
         self._hass = hass
 
@@ -28,6 +31,7 @@ class ZoneWindow:
 
     @property
     def window_open(self) -> bool:
+        """Determine if any of the window sensors indicate the window is open."""
         result = False
         for sensor in self._window_sensors:
             result = result or (get_state_bool(self._hass, sensor) or False)
@@ -35,10 +39,7 @@ class ZoneWindow:
         return result
 
     def should_heat(self) -> bool:
-        """
-        Decides whether regulator should be active based on whether window is open or closed
-        :return: True if regulator needs to be active
-        """
+        """Determine if the regulator should be active based on the window state."""
         window_open = self.window_open
 
         if self._last_open == window_open:  # There was no change
@@ -67,8 +68,11 @@ class ZoneWindow:
 
 
 class ZoneWindowSensor(BinarySensorBase):
+    """Zone window sensor."""
+
     _attr_entity_category = EntityCategory.DIAGNOSTIC
     _attr_device_class = BinarySensorDeviceClass.WINDOW
 
     def __init__(self, device_info: DeviceInfoModel):
+        """Initialize the ZoneWindowSensor with the provided device information."""
         super().__init__("Window", device_info)

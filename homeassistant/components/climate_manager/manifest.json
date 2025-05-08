@@ -1,18 +1,14 @@
 {
   "domain": "climate_manager",
   "name": "Climate Manager",
-  "codeowners": [
-    "@olegtarasov"
-  ],
+  "codeowners": ["@olegtarasov"],
   "config_flow": true,
   "dependencies": [],
-  "homeassistant": "2025.5.0",
+  "homeassistant": "2025.4.0",
   "documentation": "https://github.com/olegtarasov/ha-climate-manager",
   "integration_type": "hub",
   "issue_tracker": "https://github.com/olegtarasov/ha-climate-manager/issues",
   "iot_class": "calculated",
-  "requirements": [
-    "simple-pid==2.0.1"
-  ],
+  "requirements": ["simple-pid==2.0.1"],
   "version": "0.0.1"
 }

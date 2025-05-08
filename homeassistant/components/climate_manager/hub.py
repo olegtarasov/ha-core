@@ -28,7 +28,6 @@ from .common import (
 )
 from .const import CONFIG_BOILER_STATUS_SENSOR, CONFIG_ZONES
 from .online_tracker import OnlineTracker
-from .retry_tracker import RetryTracker
 from .utils import SimpleAwaiter, get_state_bool
 from .zone import Zone
 

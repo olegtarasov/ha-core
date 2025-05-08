@@ -3,7 +3,7 @@
 import logging
 from typing import Any
 
-from helpers.entity import async_generate_entity_id
+from homeassistant.helpers.entity import async_generate_entity_id
 import voluptuous as vol
 
 from homeassistant.config_entries import (
