@@ -9,6 +9,8 @@ _LOGGER = logging.getLogger(__name__)
 
 
 class OnlineTracker:
+    """Track the online status of a sensor and handle offline events."""
+
     def __init__(
         self,
         fault_entity: BinarySensorBase,
@@ -16,6 +18,7 @@ class OnlineTracker:
         sensor_name: str,
         became_offline_callback: Callable[[], None] | None,
     ):
+        """Initialize the OnlineTracker with necessary parameters."""
         self._wait_interval = wait_interval
         self._fault_entity = fault_entity
         self._sensor_name = sensor_name
@@ -23,6 +26,7 @@ class OnlineTracker:
         self._awaiter: SimpleAwaiter | None = None
 
     def is_online(self, online_raw: bool) -> bool:
+        """Determine if the sensor is online, considering fault states and wait intervals."""
         if not online_raw:
             if self._fault_entity.is_on:
                 # Fault is already set, wait for sensor to become online and do nothing

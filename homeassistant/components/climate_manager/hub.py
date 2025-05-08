@@ -36,6 +36,8 @@ _LOGGER = logging.getLogger(__name__)
 
 
 class Hub(ControllerBase):
+    """Main thermostat hub class."""
+
     def __init__(
         self,
         hass: HomeAssistant,
@@ -43,6 +45,7 @@ class Hub(ControllerBase):
         zones_config: list[ConfigSubentry],
         circuits_config: list[ConfigSubentry],
     ) -> None:
+        """Initialize the hub."""
         super().__init__(hass, hub_config.title)
 
         # Device
@@ -111,6 +114,7 @@ class Hub(ControllerBase):
         )
 
     def initialize(self):
+        """Initialize the hub components."""
         for zone in self.zones.values():
             zone.initialize()
 
@@ -119,10 +123,12 @@ class Hub(ControllerBase):
         )
 
     def destroy(self):
+        """Destroy the hub and clean up resources."""
         if self._unsubscribe:
             self._unsubscribe()
 
     async def _async_control_heating(self, _now: datetime) -> None:
+        """Control the heating system based on current conditions."""
         # If sensor is not set, we assume the boiler is online
         if self.boiler_online_sensor:
             boiler_online = get_state_bool(
@@ -158,6 +164,7 @@ class Hub(ControllerBase):
                 self.control_fault_entity.set_is_on(True)
 
     def _open_trvs_start_pumps(self):
+        """Start pumps and open TRVs to circulate heating."""
         _LOGGER.info("Starting pumps and opening TRVs")
         for zone in self.zones.values():
             zone.operate_trvs(1)
@@ -166,25 +173,33 @@ class Hub(ControllerBase):
 
 
 class HubControlFaultSensor(BinarySensorBase):
+    """Binary sensor indicating control fault in the hub."""
+
     _attr_entity_category = EntityCategory.DIAGNOSTIC
     _attr_device_class = BinarySensorDeviceClass.PROBLEM
 
     def __init__(self, device_info: DeviceInfoModel):
+        """Initialize the control fault sensor."""
         super().__init__("Control Fault", device_info)
 
 
 class HubBoilerFaultSensor(BinarySensorBase):
+    """Binary sensor indicating boiler fault in the hub."""
+
     _attr_entity_category = EntityCategory.DIAGNOSTIC
     _attr_device_class = BinarySensorDeviceClass.PROBLEM
 
     def __init__(self, device_info: DeviceInfoModel):
+        """Initialize the boiler fault sensor."""
         super().__init__("Boiler Fault", device_info)
 
 
 class HubOutput(SensorBase):
+    """Hub output sensor."""
 
     _attr_suggested_display_precision = 4
     _attr_icon = "mdi:gauge"
 
     def __init__(self, device_info: DeviceInfoModel):
+        """Initialize the output sensor."""
         super().__init__("Output", device_info)
