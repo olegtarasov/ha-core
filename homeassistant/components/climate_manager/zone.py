@@ -225,6 +225,9 @@ class Zone(ControllerBase):
             if (ki := preset.get("ki")) is not None:
                 pid.ki = float(ki)
 
+        # Reset the regulator when preset is applied.
+        self._regulator.reset()
+
     def _handle_pid_coeffs_changed(self):
         """Handle changes in PID coefficients for the regulator."""
         pid = cast(PidRegulator, self._regulator)

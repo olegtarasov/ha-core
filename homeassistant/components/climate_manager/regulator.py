@@ -16,8 +16,12 @@ class RegulatorBase:
         """Initialize the regulator with the target temperature."""
         raise NotImplementedError
 
-    def calculate_output(self, cur_temp: float):
+    def calculate_output(self, cur_temp: float) -> None:
         """Calculate the output based on the current temperature."""
+        raise NotImplementedError
+
+    def reset(self) -> None:
+        """Reset regulator state."""
         raise NotImplementedError
 
     @property
@@ -133,6 +137,10 @@ class PidRegulator(RegulatorBase):
         """Set the target temperature of the PID regulator."""
         self._pid.setpoint = value
 
+    def reset(self) -> None:
+        """Reset the PID regulator."""
+        self._pid.reset()
+
     def calculate_output(self, cur_temp: float):
         """Calculate the output of the PID regulator based on the current temperature."""
         if not self.enabled:
@@ -173,6 +181,10 @@ class HysteresisRegulator(RegulatorBase):
     def initialize(self, target_temperature: float) -> None:
         """Initialize the hysteresis regulator with the target temperature."""
         self._target = target_temperature
+
+    def reset(self) -> None:
+        """Reset hysteresis regulator (do nothing)."""
+        pass
 
     def calculate_output(self, cur_temp: float):
         """Calculate the output of the hysteresis regulator based on the current temperature."""

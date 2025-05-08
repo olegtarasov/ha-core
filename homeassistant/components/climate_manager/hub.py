@@ -87,6 +87,9 @@ class Hub(ControllerBase):
             if self.boiler_online_sensor
             else None
         )
+        self.aggregate_fault_entity = self.entity_bag.add_binary_sensor(
+            HubAggregateFaultSensor(self.device_info)
+        )
 
         # Private
         self._unsubscribe = None
@@ -145,6 +148,8 @@ class Hub(ControllerBase):
                     self._name,
                 )
                 self.control_fault_entity.set_is_on(True)
+        finally:
+            self.aggregate_fault_entity.set_is_on(self._has_aggregate_fault())
 
     async def _open_trvs_start_pumps(self):
         """Start pumps and open TRVs to circulate heating."""
@@ -153,6 +158,16 @@ class Hub(ControllerBase):
             await zone.operate_trvs(1)
         for circuit in self.circuits.values():
             await circuit.set_active(True)
+
+    def _has_aggregate_fault(self) -> bool:
+        if self.control_fault_entity.is_on or self.boiler_fault_entity.is_on:
+            return True
+
+        for zone in self.zones.values():
+            if zone.sensor_fault_entity.is_on or zone.control_fault_entity.is_on:
+                return True
+
+        return False
 
 
 class HubControlFaultSensor(
@@ -179,6 +194,19 @@ class HubBoilerFaultSensor(
     def __init__(self, device_info: DeviceInfoModel) -> None:
         """Initialize the boiler fault sensor."""
         super().__init__("Boiler Fault", device_info)
+
+
+class HubAggregateFaultSensor(
+    BinarySensorBase
+):  # pylint: disable=hass-enforce-class-module
+    """Binary sensor indicating boiler fault in the hub."""
+
+    _attr_entity_category = EntityCategory.DIAGNOSTIC
+    _attr_device_class = BinarySensorDeviceClass.PROBLEM
+
+    def __init__(self, device_info: DeviceInfoModel) -> None:
+        """Initialize the boiler fault sensor."""
+        super().__init__("Aggregate Fault", device_info)
 
 
 class HubOutput(SensorBase):  # pylint: disable=hass-enforce-class-module
