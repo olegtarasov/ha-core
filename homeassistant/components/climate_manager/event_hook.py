@@ -1,10 +1,10 @@
 """Event hook module."""
 
 
-class EventHook(object):
+class EventHook:
     """Manages event handlers for triggering actions."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize an empty list to store event handlers."""
         self.__handlers = []
 

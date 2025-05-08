@@ -53,7 +53,7 @@ async def async_setup_entry(hass: HomeAssistant, config_entry: HubConfigEntry) -
 async def _async_update_listener(hass: HomeAssistant, config_entry: ConfigEntry):
     """Reload entities when configuration is updated."""
 
-    # TODO: Find a way to remove Kp and Ki entities when PID changes to hysteresis
+    # TODO: Find a way to remove Kp and Ki entities when PID changes to hysteresis # pylint: disable=fixme
     await hass.config_entries.async_reload(config_entry.entry_id)
 
 

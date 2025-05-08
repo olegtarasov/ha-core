@@ -1,3 +1,5 @@
+"""Common entities and base classes."""
+
 from __future__ import annotations
 
 from typing import TypeVar
@@ -25,7 +27,8 @@ from .const import DOMAIN
 class ControllerBase:
     """Base class for controllers, providing common initialization and an entity bag for managing entities."""
 
-    def __init__(self, hass: HomeAssistant, name: str):
+    def __init__(self, hass: HomeAssistant, name: str) -> None:
+        """Initialize base controller."""
         self._hass = hass
         self._name = name
         self._unique_id = slugify(name)
@@ -36,7 +39,7 @@ class ControllerBase:
 class DeviceInfoModel:
     """Model for storing device information and providing a DeviceInfo object."""
 
-    def __init__(self, name: str, identifier: str, model: str):
+    def __init__(self, name: str, identifier: str, model: str) -> None:
         """Intialize."""
         self.model = model
         self.identifier = identifier
@@ -52,12 +55,13 @@ class DeviceInfoModel:
         )
 
 
-class HAEntityBase(Entity):
+class HAEntityBase(Entity):  # pylint: disable=hass-enforce-class-module
     """Base class for HA entities, providing common attributes and initialization."""
+
     _attr_should_poll = False
     _attr_has_entity_name = True
 
-    def __init__(self, name: str, device_info: DeviceInfoModel):
+    def __init__(self, name: str, device_info: DeviceInfoModel) -> None:
         """Intialize."""
         self._attr_name = name
         self._attr_unique_id = f"{DOMAIN}_{slugify(f'{device_info.name} {name}')}"
@@ -69,13 +73,10 @@ class HAEntityBase(Entity):
         return self._device_info.get_device_info()
 
 
-class SensorBase(HAEntityBase, SensorEntity):
+class SensorBase(HAEntityBase, SensorEntity):  # pylint: disable=hass-enforce-class-module
     """Base class for sensor entities, providing common attributes and functionality."""
-    _attr_state_class = SensorStateClass.MEASUREMENT
 
-    def __init__(self, name: str, device_info: DeviceInfoModel):
-        """Intialize."""
-        super().__init__(name, device_info)
+    _attr_state_class = SensorStateClass.MEASUREMENT
 
     def set_native_value(self, value: float) -> None:
         """Update the native value of the sensor."""
@@ -83,13 +84,10 @@ class SensorBase(HAEntityBase, SensorEntity):
         self.schedule_update_ha_state()
 
 
-class BinarySensorBase(HAEntityBase, BinarySensorEntity):
+class BinarySensorBase(HAEntityBase, BinarySensorEntity):  # pylint: disable=hass-enforce-class-module
     """Base class for binary sensor entities, providing common attributes and functionality."""
-    _attr_is_on = False
 
-    def __init__(self, name: str, device_info: DeviceInfoModel):
-        """Intialize."""
-        super().__init__(name, device_info)
+    _attr_is_on = False
 
     def set_is_on(self, value: bool) -> None:
         """Update the on/off state of the binary sensor."""
@@ -97,11 +95,8 @@ class BinarySensorBase(HAEntityBase, BinarySensorEntity):
         self.schedule_update_ha_state()
 
 
-class NumberBase(HAEntityBase, RestoreNumber):
+class NumberBase(HAEntityBase, RestoreNumber):  # pylint: disable=hass-enforce-class-module
     """Base class for number entities, providing common attributes and functionality."""
-    def __init__(self, name: str, device_info: DeviceInfoModel):
-        """Intialize."""
-        super().__init__(name, device_info)
 
     async def async_added_to_hass(self) -> None:
         """Initialize the number entity, restoring last known value if available."""
@@ -115,8 +110,9 @@ class NumberBase(HAEntityBase, RestoreNumber):
         self.schedule_update_ha_state()
 
 
-class ClimateBase(HAEntityBase, ClimateEntity):
+class ClimateBase(HAEntityBase, ClimateEntity):  # pylint: disable=hass-enforce-class-module
     """Base class for climate entities, providing common attributes and functionality."""
+
     _attr_supported_features = (
         ClimateEntityFeature.TARGET_TEMPERATURE
         | ClimateEntityFeature.PRESET_MODE
@@ -131,10 +127,6 @@ class ClimateBase(HAEntityBase, ClimateEntity):
     _attr_target_temperature_step = 0.5
     _attr_temperature_unit = UnitOfTemperature.CELSIUS
 
-    def __init__(self, name: str, device_info: DeviceInfoModel):
-        """Intialize."""
-        super().__init__(name, device_info)
-
     def set_current_temperature(self, value: float) -> None:
         """Update the current temperature of the climate entity."""
         self._attr_current_temperature = value
@@ -143,7 +135,8 @@ class ClimateBase(HAEntityBase, ClimateEntity):
 
 class EntityBag:
     """Container for managing lists of entities of different types."""
-    def __init__(self):
+
+    def __init__(self) -> None:
         """Intialize."""
         self.binary_sensors: list[Entity] = []
         self.sensors: list[Entity] = []

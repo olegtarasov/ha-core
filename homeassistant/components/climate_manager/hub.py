@@ -1,34 +1,20 @@
 """Hub."""
 
-import logging
 from datetime import datetime, timedelta
+import logging
 
-from .circuit import Circuit
-from homeassistant.helpers import device_registry as dr
-from homeassistant.components.binary_sensor import (
-    BinarySensorDeviceClass,
-    BinarySensorEntity,
-)
-from homeassistant.components.climate import (
-    ClimateEntity,
-    HVACMode,
-    PRESET_HOME,
-)
+from homeassistant.components.binary_sensor import BinarySensorDeviceClass
 from homeassistant.config_entries import ConfigEntry, ConfigSubentry
 from homeassistant.const import EntityCategory
 from homeassistant.core import HomeAssistant
+from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers.event import async_track_time_interval
-from .common import (
-    BinarySensorBase,
-    ClimateBase,
-    ControllerBase,
-    DeviceInfoModel,
-    HAEntityBase,
-    SensorBase,
-)
+
+from .circuit import Circuit
+from .common import BinarySensorBase, ControllerBase, DeviceInfoModel, SensorBase
 from .const import CONFIG_BOILER_STATUS_SENSOR, CONFIG_ZONES
 from .online_tracker import OnlineTracker
-from .utils import SimpleAwaiter, get_state_bool
+from .utils import get_state_bool
 from .zone import Zone
 
 _LOGGER = logging.getLogger(__name__)
@@ -77,7 +63,6 @@ class Hub(ControllerBase):
                 subentry_id = next(
                     iter(next(iter(device.config_entries_subentries.values())))
                 )
-                # self.zone_circuit_id_map[subentry_id] = circuit_config.subentry_id
                 circuit_zone_map[circuit_config.subentry_id].append(subentry_id)
 
         self.circuits = {
@@ -109,7 +94,7 @@ class Hub(ControllerBase):
             self.boiler_fault_entity,
             timedelta(seconds=20),
             "Boiler",
-            lambda: self._open_trvs_start_pumps(),
+            self._open_trvs_start_pumps,
         )
 
     def initialize(self):
@@ -155,10 +140,9 @@ class Hub(ControllerBase):
         except Exception:
             # Function is called every second, and we don't want to spam the logs
             if not self.control_fault_entity.is_on:
-                _LOGGER.error(
+                _LOGGER.exception(
                     "Exception occured while trying to control heating in hub %s",
                     self._name,
-                    exc_info=True,
                 )
                 self.control_fault_entity.set_is_on(True)
 
@@ -171,34 +155,34 @@ class Hub(ControllerBase):
             circuit.set_active(True)
 
 
-class HubControlFaultSensor(BinarySensorBase):
+class HubControlFaultSensor(BinarySensorBase):  # pylint: disable=hass-enforce-class-module
     """Binary sensor indicating control fault in the hub."""
 
     _attr_entity_category = EntityCategory.DIAGNOSTIC
     _attr_device_class = BinarySensorDeviceClass.PROBLEM
 
-    def __init__(self, device_info: DeviceInfoModel):
+    def __init__(self, device_info: DeviceInfoModel) -> None:
         """Initialize the control fault sensor."""
         super().__init__("Control Fault", device_info)
 
 
-class HubBoilerFaultSensor(BinarySensorBase):
+class HubBoilerFaultSensor(BinarySensorBase):  # pylint: disable=hass-enforce-class-module
     """Binary sensor indicating boiler fault in the hub."""
 
     _attr_entity_category = EntityCategory.DIAGNOSTIC
     _attr_device_class = BinarySensorDeviceClass.PROBLEM
 
-    def __init__(self, device_info: DeviceInfoModel):
+    def __init__(self, device_info: DeviceInfoModel) -> None:
         """Initialize the boiler fault sensor."""
         super().__init__("Boiler Fault", device_info)
 
 
-class HubOutput(SensorBase):
+class HubOutput(SensorBase):  # pylint: disable=hass-enforce-class-module
     """Hub output sensor."""
 
     _attr_suggested_display_precision = 4
     _attr_icon = "mdi:gauge"
 
-    def __init__(self, device_info: DeviceInfoModel):
+    def __init__(self, device_info: DeviceInfoModel) -> None:
         """Initialize the output sensor."""
         super().__init__("Output", device_info)

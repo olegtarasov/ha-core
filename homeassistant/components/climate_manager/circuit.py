@@ -2,7 +2,7 @@
 
 import logging
 
-from homeassistant.components.climate import HVACMode
+from homeassistant.components.climate import ClimateEntityFeature, HVACMode
 from homeassistant.config_entries import ConfigSubentry
 from homeassistant.const import EntityCategory
 from homeassistant.core import HomeAssistant
@@ -10,7 +10,6 @@ from homeassistant.core import HomeAssistant
 from .common import BinarySensorBase, ClimateBase, ControllerBase, DeviceInfoModel
 from .const import CONFIG_SWITCHES
 from .zone import Zone
-from homeassistant.components.climate import ClimateEntityFeature
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -113,9 +112,7 @@ class Circuit(ControllerBase):
             await zone.set_preset_from_circuit(value)
 
 
-class CircuitActiveSensor(
-    BinarySensorBase
-):  # pylint: disable=hass-enforce-class-module
+class CircuitActiveSensor(BinarySensorBase):  # pylint: disable=hass-enforce-class-module
     """Circuit active sensor."""
 
     _attr_entity_category = EntityCategory.DIAGNOSTIC

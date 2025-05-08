@@ -1,7 +1,10 @@
+"""Regulators."""
+
 from simple_pid import PID
 
 from homeassistant.components.number import NumberMode
 from homeassistant.const import EntityCategory
+
 from .common import DeviceInfoModel, EntityBag, NumberBase, SensorBase
 from .event_hook import EventHook
 
@@ -44,6 +47,7 @@ class RegulatorBase:
 
 
 class PidRegulator(RegulatorBase):
+    """PID regulator."""
 
     _pid: PID
 
@@ -52,7 +56,8 @@ class PidRegulator(RegulatorBase):
         entity_bag: EntityBag,
         device_info: DeviceInfoModel,
         average_samples: int = 20,
-    ):
+    ) -> None:
+        """Init PID regulator."""
         # Events
         self.on_coeffs_changed = EventHook()
 
@@ -156,10 +161,12 @@ class PidRegulator(RegulatorBase):
 
 
 class HysteresisRegulator(RegulatorBase):
+    """Hysteresis regulator."""
 
     _target: float
 
-    def __init__(self):
+    def __init__(self) -> None:
+        """Init hysteresis regulator."""
         self._enabled = True
         self._output = 0
 
@@ -203,7 +210,7 @@ class HysteresisRegulator(RegulatorBase):
         self._target = value
 
 
-class PidNumberBase(NumberBase):
+class PidNumberBase(NumberBase):  # pylint: disable=hass-enforce-class-module
     """Base entity for PID number."""
 
     _attr_entity_category = EntityCategory.CONFIG
@@ -214,7 +221,7 @@ class PidNumberBase(NumberBase):
 
     def __init__(
         self, name: str, regulator: PidRegulator, device_info: DeviceInfoModel
-    ):
+    ) -> None:
         """Initialize a PID number base entity."""
         super().__init__(name, device_info)
 
@@ -230,45 +237,45 @@ class PidNumberBase(NumberBase):
         super().set_native_value(value)
 
 
-class PidKpNumber(PidNumberBase):
+class PidKpNumber(PidNumberBase):  # pylint: disable=hass-enforce-class-module
     """PID Kp."""
 
     _attr_native_value = 0.5
 
-    def __init__(self, regulator: PidRegulator, device_info: DeviceInfoModel):
+    def __init__(self, regulator: PidRegulator, device_info: DeviceInfoModel) -> None:
         """Initialize a Kp PID number entity."""
         super().__init__("Kp", regulator, device_info)
 
 
-class PidKiNumber(PidNumberBase):
+class PidKiNumber(PidNumberBase):  # pylint: disable=hass-enforce-class-module
     """PID Ki."""
 
     _attr_native_value = 0.001
 
-    def __init__(self, regulator: PidRegulator, device_info: DeviceInfoModel):
+    def __init__(self, regulator: PidRegulator, device_info: DeviceInfoModel) -> None:
         """Initialize a Ki PID number entity."""
         super().__init__("Ki", regulator, device_info)
 
 
-class PidProportionalSensor(SensorBase):
+class PidProportionalSensor(SensorBase):  # pylint: disable=hass-enforce-class-module
     """PID proportional sensor."""
 
     _attr_entity_category = EntityCategory.DIAGNOSTIC
     _attr_suggested_display_precision = 4
     _attr_icon = "mdi:gauge"
 
-    def __init__(self, device_info: DeviceInfoModel):
+    def __init__(self, device_info: DeviceInfoModel) -> None:
         """Initialize a PID proportional sensor entity."""
         super().__init__("PID Proportional", device_info)
 
 
-class PidIntegralSensor(SensorBase):
+class PidIntegralSensor(SensorBase):  # pylint: disable=hass-enforce-class-module
     """PID integral sensor."""
 
     _attr_entity_category = EntityCategory.DIAGNOSTIC
     _attr_suggested_display_precision = 4
     _attr_icon = "mdi:gauge"
 
-    def __init__(self, device_info: DeviceInfoModel):
+    def __init__(self, device_info: DeviceInfoModel) -> None:
         """Initialize a PID integral sensor entity."""
         super().__init__("PID Integral", device_info)

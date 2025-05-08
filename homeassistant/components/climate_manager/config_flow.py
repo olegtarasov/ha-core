@@ -3,7 +3,6 @@
 import logging
 from typing import Any
 
-from homeassistant.helpers.entity import async_generate_entity_id
 import voluptuous as vol
 
 from homeassistant.config_entries import (
@@ -15,29 +14,26 @@ from homeassistant.config_entries import (
     SubentryFlowResult,
 )
 from homeassistant.core import callback
+from homeassistant.helpers.entity import async_generate_entity_id
 from homeassistant.helpers.selector import selector
 
 from .const import (
     CONFIG_BOILER_STATUS_SENSOR,
     CONFIG_MAIN_THERMOSTAT_NAME,
+    CONFIG_REGULATOR_TYPE,
     CONFIG_SWITCHES,
     CONFIG_TEMPERATURE_SENSOR,
     CONFIG_TRVS,
     CONFIG_WINDOW_SENSORS,
-    CONFIG_ZONES,
     CONFIG_ZONE_NAME,
-    CONFIG_REGULATOR_TYPE,
-    REGULATOR_TYPE_PID,
-    REGULATOR_TYPE_HYSTERESIS,
+    CONFIG_ZONES,
     DOMAIN,
     ENTITY_ID_FORMAT,
+    REGULATOR_TYPE_HYSTERESIS,
+    REGULATOR_TYPE_PID,
     STEP_BOILER,
-    STEP_CIRCUITS,
     STEP_ENTITIES,
-    STEP_FINISH,
-    STEP_MENU,
     STEP_USER,
-    STEP_ZONES,
     SUBENTRY_TYPE_CIRCUIT,
     SUBENTRY_TYPE_ZONE,
 )
@@ -46,15 +42,19 @@ _LOGGER = logging.getLogger(__name__)
 
 
 class HubConfigFlow(ConfigFlow, domain=DOMAIN):
+    """Hub config flow."""
+
     VERSION = 1
     _title: str
 
-    def __init__(self):
+    def __init__(self) -> None:
+        """Init hub config flow."""
         self._input_data: dict[str, Any] = {}
 
     async def async_step_user(
         self, user_input: dict[str, Any] | None = None
     ) -> ConfigFlowResult:
+        """First step in user-initiated flow."""
         data_schema = vol.Schema(
             {vol.Required(CONFIG_MAIN_THERMOSTAT_NAME, default="Main Thermostat"): str}
         )
@@ -78,6 +78,7 @@ class HubConfigFlow(ConfigFlow, domain=DOMAIN):
     async def async_step_boiler(
         self, user_input: dict[str, Any] | None = None
     ) -> ConfigFlowResult:
+        """Configure boiler online sensor."""
         existing = {}
         if self.source == SOURCE_RECONFIGURE:
             existing = self._get_reconfigure_entry().data.copy()
@@ -113,6 +114,7 @@ class HubConfigFlow(ConfigFlow, domain=DOMAIN):
     async def async_step_reconfigure(
         self, user_input: dict[str, Any] | None = None
     ) -> ConfigFlowResult:
+        """Reconfigure step."""
         return await self.async_step_boiler()
 
     @classmethod
@@ -244,7 +246,9 @@ class ZoneSubentryFlowHandler(ConfigSubentryFlow):
 
         return self.async_show_form(step_id=STEP_ENTITIES, data_schema=data_schema)
 
-    async def async_step_reconfigure(self, user_input: dict[str, Any] | None = None):
+    async def async_step_reconfigure(
+        self, user_input: dict[str, Any] | None = None
+    ) -> SubentryFlowResult:
         """Reconfigures the zone."""
         return await self.async_step_entities(user_input)
 
@@ -342,6 +346,8 @@ class CircuitSubentryFlowHandler(ConfigSubentryFlow):
 
         return self.async_show_form(step_id=STEP_ENTITIES, data_schema=data_schema)
 
-    async def async_step_reconfigure(self, user_input: dict[str, Any] | None = None):
+    async def async_step_reconfigure(
+        self, user_input: dict[str, Any] | None = None
+    ) -> SubentryFlowResult:
         """Reconfigures the zone."""
         return await self.async_step_entities(user_input)

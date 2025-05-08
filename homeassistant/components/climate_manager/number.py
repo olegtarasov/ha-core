@@ -1,21 +1,18 @@
+"""Number platform."""
+
 from typing import cast
 
-from homeassistant.const import EntityCategory
-from homeassistant.helpers.entity import Entity
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
-from homeassistant.helpers.entity_platform import AddEntitiesCallback
+from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
 from .hub import Hub
-from .zone import Zone, NumberBase
-from homeassistant.components.binary_sensor import BinarySensorDeviceClass
-from homeassistant.components.number import NumberMode
 
 
 async def async_setup_entry(
     hass: HomeAssistant,
     config_entry: ConfigEntry,
-    async_add_entities: AddEntitiesCallback,
+    async_add_entities: AddConfigEntryEntitiesCallback,
 ) -> None:
     """Add sensors for passed config_entry in HA."""
     hub = cast(Hub, config_entry.runtime_data)

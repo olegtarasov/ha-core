@@ -1,9 +1,11 @@
-import logging
+"""Utils."""
+
 from datetime import timedelta
+import logging
 from typing import Any
 
 from homeassistant.core import HomeAssistant
-from homeassistant.util import dt
+from homeassistant.util import dt as dt_util
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -15,23 +17,23 @@ class SimpleAwaiter:
     """Initialize a SimpleAwaiter instance with a specified wait time."""
 
     def __init__(self, wait_time: timedelta) -> None:
-        start_time = dt.now()
+        """Init awaiter."""
+        start_time = dt_util.now()
         self.target_time = start_time + wait_time
 
     @property
     def elapsed(self) -> bool:
         """Check if the elapsed time has reached the target time."""
-        return dt.now() >= self.target_time
+        return dt_util.now() >= self.target_time
 
 
 def str_to_bool(value: str) -> bool | None:
     """Convert a string value to a boolean, returning None if the value is not recognized."""
     if value in bool_true:
         return True
-    elif value in bool_false:
+    if value in bool_false:
         return False
-    else:
-        return None
+    return None
 
 
 def get_state_value(
@@ -45,7 +47,6 @@ def get_state_value(
     if state is None:
         return default
 
-    value: str
     if attribute is not None:
         if attribute in state.attributes:
             return state.attributes[attribute]
@@ -65,7 +66,7 @@ def get_state_bool(
 
     try:
         return str_to_bool(value.lower())
-    except:
+    except:  # noqa: E722
         _LOGGER.warning(
             "Failed to get bool state for entity %s%s. Received: %s",
             entity,
@@ -86,7 +87,7 @@ def get_state_float(
 
     try:
         return float(value)
-    except:
+    except:  # noqa: E722
         _LOGGER.warning(
             "Failed to get floar state for entity %s%s. Received: %s",
             entity,
