@@ -224,6 +224,9 @@ class Zone(ControllerBase):
             if (ki := preset.get("ki")) is not None:
                 pid.ki = float(ki)
 
+        if (temp := preset.get("temperature")) is not None:
+            self._regulator.target_temperature = float(temp)
+
         # Reset the regulator when preset is applied.
         self._regulator.reset()
 
