@@ -236,9 +236,7 @@ class Zone(ControllerBase):
         self.climate_entity.save_pid_coeffs(pid.kp, pid.ki)
 
 
-class ZoneControlFaultSensor(
-    BinarySensorBase
-):  # pylint: disable=hass-enforce-class-module
+class ZoneControlFaultSensor(BinarySensorBase):  # pylint: disable=hass-enforce-class-module
     """Sensor to indicate control faults in the zone."""
 
     _attr_entity_category = EntityCategory.DIAGNOSTIC
@@ -249,9 +247,7 @@ class ZoneControlFaultSensor(
         super().__init__("Control Fault", device_info)
 
 
-class ZoneSensorFaultSensor(
-    BinarySensorBase
-):  # pylint: disable=hass-enforce-class-module
+class ZoneSensorFaultSensor(BinarySensorBase):  # pylint: disable=hass-enforce-class-module
     """Sensor to indicate sensor faults in the zone."""
 
     _attr_entity_category = EntityCategory.DIAGNOSTIC
@@ -262,9 +258,7 @@ class ZoneSensorFaultSensor(
         super().__init__("Sensor Fault", device_info)
 
 
-class ZoneRegulatorActiveSensor(
-    BinarySensorBase
-):  # pylint: disable=hass-enforce-class-module
+class ZoneRegulatorActiveSensor(BinarySensorBase):  # pylint: disable=hass-enforce-class-module
     """Sensor to indicate whether regulator is active."""
 
     _attr_entity_category = EntityCategory.DIAGNOSTIC
@@ -275,9 +269,7 @@ class ZoneRegulatorActiveSensor(
         super().__init__("Regulator Active", device_info)
 
 
-class ZoneClimate(
-    ClimateBase, RestoreEntity
-):  # pylint: disable=hass-enforce-class-module
+class ZoneClimate(ClimateBase, RestoreEntity):  # pylint: disable=hass-enforce-class-module
     """Climate entity for the heating zone."""
 
     _attr_target_temperature = 22
@@ -322,7 +314,6 @@ class ZoneClimate(
     async def async_set_hvac_mode(self, hvac_mode: HVACMode) -> None:
         """Set the HVAC mode for the climate entity."""
         self._attr_hvac_mode = hvac_mode
-        self._set_preset_item("mode", str(self._attr_hvac_mode))
         self.async_write_ha_state()
 
     async def async_set_temperature(self, **kwargs) -> None:
@@ -359,8 +350,6 @@ class ZoneClimate(
         """Apply a preset to the climate entity."""
         if (temp := preset.get("temperature")) is not None:
             self._attr_target_temperature = float(temp)
-        if (mode := preset.get("mode")) is not None:
-            self._attr_hvac_mode = mode
 
         self.schedule_update_ha_state()
         self.zone.handle_preset_changed(preset)
