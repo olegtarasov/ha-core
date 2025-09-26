@@ -7,13 +7,14 @@ from typing import Any, cast
 from aiocomelit import ComelitSerialBridgeObject
 from aiocomelit.const import COVER, STATE_COVER, STATE_OFF, STATE_ON
 
-from homeassistant.components.cover import CoverDeviceClass, CoverEntity, CoverState
+from homeassistant.components.cover import CoverDeviceClass, CoverEntity
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 from homeassistant.helpers.restore_state import RestoreEntity
 
 from .coordinator import ComelitConfigEntry, ComelitSerialBridge
 from .entity import ComelitBridgeBaseEntity
+from .utils import bridge_api_call
 
 # Coordinator is used to centralize the data updates
 PARALLEL_UPDATES = 0
@@ -28,10 +29,21 @@ async def async_setup_entry(
 
     coordinator = cast(ComelitSerialBridge, config_entry.runtime_data)
 
-    async_add_entities(
-        ComelitCoverEntity(coordinator, device, config_entry.entry_id)
-        for device in coordinator.data[COVER].values()
-    )
+    known_devices: set[int] = set()
+
+    def _check_device() -> None:
+        current_devices = set(coordinator.data[COVER])
+        new_devices = current_devices - known_devices
+        if new_devices:
+            known_devices.update(new_devices)
+            async_add_entities(
+                ComelitCoverEntity(coordinator, device, config_entry.entry_id)
+                for device in coordinator.data[COVER].values()
+                if device.index in new_devices
+            )
+
+    _check_device()
+    config_entry.async_on_unload(coordinator.async_add_listener(_check_device))
 
 
 class ComelitCoverEntity(ComelitBridgeBaseEntity, RestoreEntity, CoverEntity):
@@ -68,16 +80,10 @@ class ComelitCoverEntity(ComelitBridgeBaseEntity, RestoreEntity, CoverEntity):
     def is_closed(self) -> bool | None:
         """Return if the cover is closed."""
 
-        if self._last_state in [None, "unknown"]:
-            return None
-
-        if self.device_status != STATE_COVER.index("stopped"):
-            return False
-
         if self._last_action:
             return self._last_action == STATE_COVER.index("closing")
 
-        return self._last_state == CoverState.CLOSED
+        return None
 
     @property
     def is_closing(self) -> bool:
@@ -89,6 +95,7 @@ class ComelitCoverEntity(ComelitBridgeBaseEntity, RestoreEntity, CoverEntity):
         """Return if the cover is opening."""
         return self._current_action("opening")
 
+    @bridge_api_call
     async def _cover_set_state(self, action: int, state: int) -> None:
         """Set desired cover state."""
         self._last_state = self.state
